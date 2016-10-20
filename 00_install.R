@@ -7,9 +7,12 @@ install_packages <- function(pkgs) {
   }
 }
 
-install_packages("devtools") 
 install_packages("magrittr") 
+install_packages("readr") 
+
 install_packages("dplyr") 
+
+install_packages("devtools") 
 
 install_github("bcgov/envreportutils")
 install_github("bcgov/bcmaps")
