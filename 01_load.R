@@ -12,7 +12,7 @@
 
 source("header.R")
 
-stations <- read_csv("data/BC_WQI_Appendix_2016.csv")
+stations <- read_csv("meta/BC_WQI_Appendix_2016.csv")
 
 stations %<>% select(Station_Number = `Station Number`, 
                  Station_Name = `Station Name`, 

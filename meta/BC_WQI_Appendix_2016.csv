@@ -1,0 +1,48 @@
+Station Number,EMS ID,Station Name,Reporting History,Core Contract Deliverables,Station Data Time Series (complete calendar years)
+NORTH COAST,,,,,
+BC08CG0001,920125,Iskut River below Johnson,Historical National Reporting Site (ended 2009),"Data Tidying & QC, WQI Analysis, Trend Analysis",1980-2016 (35)
+AK08DC0001,E237496,Salmon River at Hyder,Current National Reporting Site (CESI),WQI Analysis,1981-2016 (34)
+BC07FD0005,E206585,Peace River above Alces River,Historical National Reporting Site (ended 2014),"Data Tidying & QC, Trend Analysis (Insufficient 2013-15 data for WQI)",1984-2016 (31)
+BC08FC0001,600042,Dean River upstream of Lodge Creek,,"Data Tidying & QC, WQI Analysis, Trend Analysis*",2008-2016 (7)
+Skeena River,,,,,
+BC08EF0001,920092,Skeena River at Usk,Current National Reporting Site (CESI),WQI Analysis,1984-2016 (31)
+FRASER,,,,,
+BC08KA0007,E236796,Fraser River at Redpass,Current National Reporting Site (CESI),WQI Analysis,1984-2016 (31)
+BC08KE0010,E206583,Nechako River at Prince George,Current National Reporting Site (CESI),WQI Analysis,1984-2016 (31)
+BC08MC0001,600011,Fraser River at Marguerite,Current National Reporting Site (CESI),WQI Analysis,1984-2016 (31)
+BC08MB0007,E255962,Chilcotin River upstream of Christie Road Bridge,,"Data Tidying & QC, WQI Analysis, Trend Analysis",2004-2016 (11)
+BC08MF0001,E206581,Fraser River at Hope,Current National Reporting Site (CESI),WQI Analysis,1979-2016 (36)
+BC08MH0027,300038,Sumas at the International Border,Current National Reporting Site (CESI),WQI Analysis,1979-2016 (36)
+Thompson River (sub-basin),,,,,
+BC08LC0005,E284949,Shuswap River upstream of Mara Lake,,"Data Tidying & QC, WQI Analysis",2011-2016 (5)
+BC08LE0004,E206092,Salmon River at Salmon Arm,Current National Reporting Site (CESI),WQI Analysis,1988-2016 (27)
+BC08LG0001,E216848,Nicola River near mouth at Thompson River,Historical National Reporting Site (ended 2009),"Data Tidying & QC, WQI Analysis, Trend Analysis",2003-2016 (12)
+BC08LF0001,E206586,Thompson River at Spences Bridge,Current National Reporting Site (CESI),WQI Analysis,1984-2016 (31)
+Quesnel River (sub-basin),,,,,
+BC08KH0012,E256314,Horsefly River above Quesnel lake,,"Data Tidying & QC, WQI Analysis, Trend Analysis",2006-2016 (9)
+GEORGIA BASIN - MAINLAND,,,,,
+BC08GA0010,E269864,Cheakamus River below STP,Current National Reporting Site (CESI),WQI Analysis,2004-2016 (11)
+BC08MH0269,E255013,North Alouette River at 132nd and Edge Street,Historical National Reporting Site (ended 2009),"Data Tidying & QC, WQI Analysis, Trend Analysis",2004-2016 (11)
+GEORGIA BASIN - VANCOUVER ISLAND,,,,,
+BC08HD0004,126400,Quinsam River near the Mouth,Current National Reporting Site (CESI),WQI Analysis,1986-2016 (29)
+BC08HB0019,121580,Englishman River at HWY 19,Current National Reporting Site (CESI),WQI Analysis,2004-2016 (11)
+BC08HB0018,E207826,Tsolum River below Murex Creek,Historical National Reporting Site (ended 2009),"Data Tidying & QC, WQI Analysis, Trend Analysis",2005-2016 (10)
+BC08HA0018,E206106,Cowichan River 1km downstream of Somenos Creek,Current National Reporting Site (CESI),WQI Analysis,1999-2016 (16)
+OKANAGAN RIVER,,,,,
+BC08NL0001,500629,Similkameen River at Princeton,Historical National Reporting Site (ended 2009),"Data Tidying & QC, WQI Analysis, Trend Analysis",1984-2016 (31)
+BC08NL0005,500073,Similkameen River at the Border,Current National Reporting Site (CESI),WQI Analysis,1979-2016 (36)
+BC08NM0001,500720,Okanagan River at Oliver,Current National Reporting Site (CESI),WQI Analysis,1979-2016 (36)
+KOOTENAY RIVER,,,,,
+BC08NG0009,200038,Kootenay River at Fenwick,Historical National Reporting Site (ended 2009),"Data Tidying & QC, WQI Analysis, Trend Analysis",1984-2016 (31)
+BC08NH0005,E206587,Kootenay River at Creston,Current National Reporting Site (CESI),WQI Analysis,1979-2016 (36)
+Elk River (sub-basin),,,,,
+BC08NK0004,200102,Elk River at Sparwood,Historical National Reporting Site (ended 2009),"Data Tidying & QC, WQI Analysis, Trend Analysis",2002-2016 (13)
+BC08NK0003,200016,Elk River at Hwy 93 Near Elko,Current National Reporting Site (CESI),WQI Analysis,1984-2016 (31)
+COLUMBIA RIVER,,,,,
+BC08NA0048,E252119,Columbia River at Nicholson,,"Data Tidying & QC, WQI Analysis, Trend Analysis",2003-2016 (12)
+BC08NE0005,200003,Columbia River at Birchbank,Historical National Reporting Site (ended 2009),"Data Tidying & QC, WQI Analysis, Trend Analysis",1983-2016 (30)
+BC08NE0029,200021,Pend D'Oreille River at Waneta,Current National Reporting Site (CESI),WQI Analysis,1979-2016 (36)
+BC08NE0001,200559,Columbia River at Waneta,Current National Reporting Site (CESI),WQI Analysis,1979-2016 (36)
+Kettle River (sub-basin),,,,,
+BC08NN0011,200084,Kettle River at Midway,Historical National Reporting Site (ended 2009),"Data Tidying & QC, WQI Analysis, Trend Analysis",1979-2016 (36)
+BC08NN0021,920673,Kettle River at Carson,Current National Reporting Site (CESI),WQI Analysis,1979-2016 (36)
