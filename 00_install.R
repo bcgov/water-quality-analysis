@@ -7,6 +7,7 @@ install_packages <- function(pkgs) {
   }
 }
 
+install_packages("lubridate") 
 install_packages("magrittr") 
 install_packages("readr") 
 
