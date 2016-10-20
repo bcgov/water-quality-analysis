@@ -12,7 +12,12 @@
 
 source("header.R")
 
-ems <- readRDS("load.rds")
+ems <- readRDS("out/load.rds")
 
-# ems %<>% clean_wqdata(by = "Station_Number")
+# we need to eliminate clearly erroneous data before calling clean_wqdata.
+# we should also entirely eliminate variables at a site with insufficient data.
+
+ems %<>% clean_wqdata(by = c("Station_Number"))
+
+saveRDS(ems, "out/clean.rds")
 
