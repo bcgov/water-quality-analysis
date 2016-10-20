@@ -1,4 +1,6 @@
-install.packages("devtools") # If you don't already have it installed
+install.packages("devtools") 
+install.packages("magrittr") 
+install.packages("dplyr") 
 
 library(devtools)
 install_github("bcgov/envreportutils")
