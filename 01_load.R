@@ -181,7 +181,7 @@ ems %<>% select(Station_Number, Date = COLLECTION_START, Code = PARAMETER_CODE,
 
 warning("not passing upper and lower limits because very few defined")
 # ensure just variables of interest are included
-ems %<>% semi_join(variables, by = c("Station_Number", "Code"))
+ems %<>% semi_join(variables, by = c("Code"))
 rm(variables)
 
 # convert ems$Date from POSIX to Date
