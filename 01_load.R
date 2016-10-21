@@ -111,7 +111,7 @@ variables$Variable %<>%
   str_replace("^As$", "Arsenic Total") %>%
   str_replace("^Ba$", "Barium") %>%
   str_replace("^Cd$", "Cadmium Dissolved") %>%
-  str_replace("^CN$", "Cyanide") %>%
+  str_replace("^CN$", "Cyanide Weak Acid Dissociable") %>%
   str_replace("^Cr$", "Chromium") %>%
   str_replace("^Cu$", "Copper Total") %>%
   str_replace("^Cu [(]d[)]$", "Copper Dissolved") %>%
@@ -121,19 +121,20 @@ variables$Variable %<>%
   str_replace("^Mn$", "Manganese") %>%
   str_replace("^Mo$", "Molybdenum Total") %>%
   str_replace("^NH3$", "Ammonia") %>%
-  str_replace("^Ni$", "Nickel") %>%
+  str_replace("^Ni$", "Nickel Total") %>%
   str_replace("^NO2$", "Nitrite") %>%
   str_replace("^Pb$", "Lead") %>%
   str_replace("^Se$", "Selenium Total") %>%
   str_replace("^SO4$", "Sulphate") %>%
   str_replace("^TDN$", "Nitrogen Total Dissolved") %>%
-  str_replace("^TDP$", "Phosphorus Total Dissolved") %>%
+  str_replace("^TDP$", "Phosphorus Dissolved") %>%
   str_replace("^Temp$", "Temperature") %>%
-  str_replace("^Tl$", "Thallium") %>%
+  str_replace("^Tl$", "Thallium Total") %>%
   str_replace("^TP$", "Phosphorus Total") %>%
   str_replace("^Pb$", "Lead") %>%
   str_replace("^Zn$", "Zinc Total")
 
+sort(unique(variables$Variable))
 # ensure ph, hardness, chloride included if available
 # as some limits depend on their values
 extra_variables <- expand.grid(Station_Name = unique(variables$Station_Name), 
@@ -182,6 +183,10 @@ ems %<>% select(Station_Number, Date = COLLECTION_START, Code = PARAMETER_CODE,
 warning("not passing upper and lower limits because very few defined")
 # ensure just variables of interest are included
 ems %<>% semi_join(variables, by = c("Code"))
+
+# keep if station not in variables - otherwise only keep if codes match station codes
+ems %<>% filter(!Station_Number %in% variables$Station_Number | 
+                  str_c(Station_Number, Code) %in% str_c(variables$Station_Number, variables$Code))
 rm(variables)
 
 # convert ems$Date from POSIX to Date
