@@ -16,8 +16,11 @@ ems <- readRDS("out/load.rds")
 
 # we need to eliminate clearly erroneous data before calling clean_wqdata.
 # we should also entirely eliminate variables at a site with insufficient data.
+# note we should not eliminate ph, hardness or chloride as required for limits on other variables.
+# Joe needs to check that detection limits are correct
+ems %<>% clean_wqdata(by = c("Station"))
 
-ems %<>% clean_wqdata(by = c("Station_Number"))
+ems %<>% as.tbl()
 
 saveRDS(ems, "out/clean.rds")
 
