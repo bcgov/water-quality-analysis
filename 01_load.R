@@ -17,10 +17,11 @@ source("header.R")
 
 # read in data
 # stations is list of stations for analysis
-# variables is list of stations and variables for 2013-2015 analysis
-# get ems data using rems functions
+# limits is federal stations and variable limits
 limits <- read_csv("meta/2015-16 CESI Parameters and Guideline_BC.csv")
+# stations is list of all stations of interest
 stations <- read_csv("meta/BC_WQI_Appendix_2016.csv")
+# variables is list of provincial stations and variables
 variables <- read_csv("meta/variables-by-station.csv")
 
 # necessary hack to tidy data!
@@ -50,27 +51,48 @@ limits %<>% select(Station_Number, Variable, LowerLimit, UpperLimit, Units)
 warning("the resolution of variable names from station limits table needs checking")
 limits$Variable %<>% str_to_title() %>%
   str_replace("^Ph$", "pH") %>%
+  str_replace("^Alkalinity$", "Alkalinity Total") %>%
   str_replace("^Arsenic$", "Arsenic Total") %>%
+  str_replace("^Cyanide$", "Cyanide Weak Acid Dissociable") %>%
   str_replace("^Cadmium$", "Cadmium Dissolved") %>%
   str_replace("^Chloride$", "Chloride Total") %>%
+  str_replace("^Chromium$", "Chromium Total") %>%
   str_replace("^Copper$", "Copper Total") %>%
   str_replace("^Dissolved Oxygen$", "Oxygen Dissolved") %>%
   str_replace("^Flouride$", "Fluoride Total") %>%
   str_replace("^Iron$", "Iron Total") %>%
   str_replace("^Molybdenum$", "Molybdenum Total") %>%
   str_replace("^Nitrate$", "Nitrate Total") %>%
+  str_replace("^Nitrogen$", "Nitrogen Total") %>%
   str_replace("^Phosphorus$", "Phosphorus Total") %>%
   str_replace("^Selenium$", "Selenium Total") %>%
+  str_replace("^Thallium$", "Thallium Total") %>%
+  str_replace("^Uranium$", "Uranium Total") %>%
   str_replace("^Water Temperature$", "Temperature") %>%
   str_replace("^Zinc$", "Zinc Total")
-  
+
+# get codes that recognised in wqbc
+limits$Code <- lookup_codes(limits$Variable)
+
+limits$Code[limits$Variable == "Chromium"] <- "CR-T" 
+limits$Code[limits$Variable == "Oxygen Dissolved"] <- "0014" 
+limits$Code[limits$Variable == "Temperature"] <- "0013" 
+
+# drop uninformative columns (formatting artefact)
+stations %<>% filter(!is.na(`EMS ID`))
+# drop station with missing data
+stations %<>% filter(`Station Name` != "Peace River above Alces River")
+stations %<>% mutate(Provincial = str_detect(`Core Contract Deliverables`, "Data Tidying [&] QC"),
+                     StartYear = str_replace(`Station Data Time Series (complete calendar years)`, "(^\\d{4,4})(.*)", "\\1"),
+                     EndYear = str_replace(`Station Data Time Series (complete calendar years)`, "(^\\d{4,4}-)(\\d{4,4})(.*)", "\\2"))
+
 # rename and select specific columns from stations
 stations %<>% select(Station_Number = `Station Number`, 
                  Station_Name = `Station Name`, 
-                 EMS_ID = `EMS ID`)
+                 EMS_ID = `EMS ID`,
+                 StartYear, EndYear, Provincial)
 
-# drop uninformative columns (formatting artefact)
-stations %<>% filter(!is.na(EMS_ID))
+stations$Federal <- stations$Station_Number %in% limits$Station_Number
 
 # rename Water Body as Station_Name and fill in missing values
 variables %<>% rename(Station_Name = `Water Body`) %>% fill(Station_Name)
@@ -90,12 +112,12 @@ variables$Station_Name %<>%
   str_replace("^North Alouette River$", "North Alouette River at 132nd and Edge Street") %>%
   str_replace("^Tsolum River$", "Tsolum River below Murex Creek")
 
-# check variables Station_Name values consistent with stations data
-stopifnot(all(variables$Station_Name %in% stations$Station_Name))
-
 # removed because TriStar report states that
 # We found that there were generally adequate data available for all stations except the Peace River at Alces.
 variables %<>% filter(Station_Name != "Peace River above Alces River")
+
+# check variables Station_Name values consistent with stations data
+stopifnot(all(variables$Station_Name %in% stations$Station_Name))
 
 # convert variables from wide to long format and sort by Station_Name and Variable
 variables %<>% gather(Key, Variable, -Station_Name, na.rm = TRUE) %>% select(-Key) %>% arrange(Station_Name, Variable)
@@ -106,32 +128,32 @@ variables %<>% filter(!Variable %in% c("DO in future"))
 # edit Variable so that full names for matching with Variables
 warning("the resolution of variable names from station variables table needs checking")
 variables$Variable %<>% 
-  str_replace("^Ag$", "Silver") %>%
+  str_replace("^Ag$", "Silver Total") %>%
   str_replace("^Al [(]d[)]$", "Aluminium Dissolved") %>%
   str_replace("^As$", "Arsenic Total") %>%
-  str_replace("^Ba$", "Barium") %>%
+  str_replace("^Ba$", "Barium Total") %>%
   str_replace("^Cd$", "Cadmium Dissolved") %>%
   str_replace("^CN$", "Cyanide Weak Acid Dissociable") %>%
-  str_replace("^Cr$", "Chromium") %>%
+  str_replace("^Cr$", "Chromium Total") %>%
   str_replace("^Cu$", "Copper Total") %>%
   str_replace("^Cu [(]d[)]$", "Copper Dissolved") %>%
   str_replace("^DO$", "Oxygen Dissolved") %>%
   str_replace("^E. (c|C)oli$", "E. coli") %>%
   str_replace("^F$", "Fluoride Total") %>%
-  str_replace("^Mn$", "Manganese") %>%
+  str_replace("^Mn$", "Manganese Total") %>%
   str_replace("^Mo$", "Molybdenum Total") %>%
-  str_replace("^NH3$", "Ammonia") %>%
+  str_replace("^NH3$", "Ammonia Dissolved") %>%
   str_replace("^Ni$", "Nickel Total") %>%
-  str_replace("^NO2$", "Nitrite") %>%
-  str_replace("^Pb$", "Lead") %>%
+  str_replace("^NO2$", "Nitrite Dissolved") %>%
+  str_replace("^(NO2[/]NO3)|(NO2[+]NO3)$", "Nitrate Nitrite") %>%
+  str_replace("^Pb$", "Lead Total") %>%
   str_replace("^Se$", "Selenium Total") %>%
-  str_replace("^SO4$", "Sulphate") %>%
+  str_replace("^SO4$", "Sulphate Total") %>%
   str_replace("^TDN$", "Nitrogen Total Dissolved") %>%
   str_replace("^TDP$", "Phosphorus Dissolved") %>%
   str_replace("^Temp$", "Temperature") %>%
   str_replace("^Tl$", "Thallium Total") %>%
   str_replace("^TP$", "Phosphorus Total") %>%
-  str_replace("^Pb$", "Lead") %>%
   str_replace("^Zn$", "Zinc Total")
 
 sort(unique(variables$Variable))
@@ -145,10 +167,6 @@ rm(extra_variables)
 
 variables %<>% inner_join(stations, by = "Station_Name")
 variables %<>% select(Station_Number, Variable)
-
-warning("almost non overlaps between limits and stations and variables")
-variables %<>% left_join(limits, by = c("Station_Number", "Variable"))
-rm(limits)
 
 warning("a bunch of variables not in wqbc (and without limits)")
 # lookup codes from Variable names 
@@ -178,16 +196,11 @@ ems %<>% select(Station_Number, Date = COLLECTION_START, Code = PARAMETER_CODE,
                 Value = RESULT, Units = UNIT, 
                 DetectionLimit = METHOD_DETECTION_LIMIT, Variable = PARAMETER, 
                 EMS_ID, Station_Name, Latitude = LATITUDE, Longitude = LONGITUDE, 
+                Provincial, Federal,
                 QA_INDEX_CODE)
 
-warning("not passing upper and lower limits because very few defined")
 # ensure just variables of interest are included
-ems %<>% semi_join(variables, by = c("Code"))
-
-# keep if station not in variables - otherwise only keep if codes match station codes
-ems %<>% filter(!Station_Number %in% variables$Station_Number | 
-                  str_c(Station_Number, Code) %in% str_c(variables$Station_Number, variables$Code))
-rm(variables)
+ems %<>% filter(Code %in% unique(c(limits$Code, variables$Code)))
 
 # convert ems$Date from POSIX to Date
 ems$Date %<>% date()
@@ -202,14 +215,12 @@ ems %<>% as.tbl()
 # ensure out folder exists to save data
 dir.create("out", showWarnings = FALSE)
 
-station <- select(ems, Station = Station_Number, EMS_ID, Station_Name, Latitude, Longitude) %>%
+station <- select(ems, Station_Number, EMS_ID, Station_Name, Latitude, Longitude) %>%
   unique()
 
-variable <- select(ems, Code, Variable) %>% unique()
+ems %<>% select(-Variable, -EMS_ID, -Station_Name, -Latitude, -Longitude, -Provincial, -Federal)
 
-ems %<>% rename(Station = Station_Number) %>% select(-Variable, -EMS_ID, -Station_Name, -Latitude, -Longitude)
-
-# save data to out folder so only need to run this script once
 saveRDS(ems, "out/load.rds")
 saveRDS(station, "out/station.rds")
-saveRDS(station, "out/variable.rds")
+saveRDS(limits, "out/federal.rds")
+saveRDS(variables, "out/provincial.rds")

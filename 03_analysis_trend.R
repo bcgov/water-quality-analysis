@@ -12,19 +12,6 @@
 
 source("header.R")
 
-ems <- readRDS("out/load.rds")
-provincial <- readRDS("out/provincial.rds")
+ems <- readRDS("out/clean.rds")
 
-# for now just work on provincial data
-ems %<>% semi_join(provincial, by = c("Station_Number", "Code"))
-
-# we need to eliminate clearly erroneous data before calling clean_wqdata.
-# we should also entirely eliminate variables at a site with insufficient data.
-# note we should not eliminate ph, hardness or chloride as required for limits on other variables.
-# Joe needs to check that detection limits are correct
-ems %<>% clean_wqdata(by = c("Station"))
-
-ems %<>% as.tbl()
-
-saveRDS(ems, "out/clean.rds")
-
+## analyse 
