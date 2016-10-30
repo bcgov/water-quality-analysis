@@ -23,7 +23,10 @@
 #     c. repeat this procedure until all outliers have been removed.
 #
 
-# try some rudimentary cleaning
+# wrapper function, 
+#   outlier_removal_by - calls the two base removal methods:
+#      1) outlier_removal_mad
+#      2) outlier_removal_robust_ts
 outlier_removal_by <- function(wk, w_threshold=6, theshold=10, debug=FALSE) {
 
   # track how many points are being removed
@@ -31,7 +34,7 @@ outlier_removal_by <- function(wk, w_threshold=6, theshold=10, debug=FALSE) {
   ndata <- nrow(wk)  
   
   # do by mad - finds extreme values at head and tail of time series
-  wk %<>% do(outlier_removal2_by(., threshold = theshold))
+  wk %<>% do(outlier_removal_mad(., threshold = theshold))
   ndata <- c(ndata, nrow(wk))
   
   if (ndata[1] - ndata[2] > 20 | ndata[2]/ndata[1] < 0.9) {
@@ -46,7 +49,7 @@ outlier_removal_by <- function(wk, w_threshold=6, theshold=10, debug=FALSE) {
   change <- TRUE
   while(change) {
     # identify outliers and drop
-    wk %<>% do(outlier_removal1_by(., w_threshold = w_threshold, debug = debug))
+    wk %<>% do(outlier_removal_robust_ts(., w_threshold = w_threshold, debug = debug))
     ndata <- c(ndata, nrow(wk))
     change <- nrow(wk) < orig
     orig <- nrow(wk)
@@ -58,7 +61,9 @@ outlier_removal_by <- function(wk, w_threshold=6, theshold=10, debug=FALSE) {
 }
 
 
-outlier_removal2_by <- function(wk, threshold = 10) {
+# this function removes any observations that are more than 'threshold' mad's (calculated
+#   on the log scale) away from the median
+outlier_removal_mad <- function(wk, threshold = 10) {
 
   # if data is constant then no outliers
   if (nrow(wk) == 1 || sd(wk$Value) == 0) {
@@ -82,7 +87,6 @@ outlier_removal2_by <- function(wk, threshold = 10) {
     } 
     (x - median(x))/madx
   }
-  wk$Value %>% mad_resids
   # what threshold to choose?
   # 10 on the log scale?
   wk %<>% filter(mad_resids(Value) < threshold)
@@ -92,7 +96,13 @@ outlier_removal2_by <- function(wk, threshold = 10) {
 }
 
 
-outlier_removal1_by <- function(wk,   w_threshold=5, debug=FALSE) {
+# this function removed observations that are more than 'w_threshold' sd's (calculated 
+# on the lg scale) from a timeseries model fitted to the log observations.
+# 
+# The model fitted is a GAM, with a seasonal and long term component.  It is iteratively
+# refitted with weights based on the previous model fits residuals, much link the
+# robust linear regression fitting algorithm in MASS.
+outlier_removal_robust_ts <- function(wk,   w_threshold=5, debug=FALSE) {
 
   # if data is constant then no outliers
   if (nrow(wk) == 1 || sd(wk$Value) == 0) {
@@ -111,7 +121,7 @@ outlier_removal1_by <- function(wk,   w_threshold=5, debug=FALSE) {
   # residual function
   w_resid <- function (mod) {
     # uing the prediction standard deviation
-    # means we keep observations that out on thier own...
+    # means we keep observations that are poorly predicted
     sd.y <- predict(mod, se.fit = TRUE)$se.fit + sqrt(mod$sig2)
     res <- (mod$y - fitted(mod)) / sd.y
     res
@@ -119,19 +129,21 @@ outlier_removal1_by <- function(wk,   w_threshold=5, debug=FALSE) {
   
   # select a transformation
   # note - log transform runs into trouble due to
-  # bimdodal natre of some data - very small vs positive
+  # bimodal nature of some data - e.g. 50% very small and 50% positive
   trans <- function(x) x^.5
+  # in any case, it is still useful to replace zero values by half the minimum non-zero value
+  # this is not generally a good thing for modelling, but we are only trying to define a method
+  # to identify observations that are too big.
   wk$.Value <- wk$Value
   if (any(wk$.Value == 0)) {
     wk$.Value[wk$Value == 0] <- min(wk$Value[wk$Value>0])/2
   }
   
-  # initialise weights
+  # initialise weights and convergence criteria
   weights <- rep(1, nrow(wk))
-  
-  # convergence criteria
   change <- 1
   iterations <- 0
+  # These could be generalised in a control list
   change_thresh <- 0.001
   iter_max <- 50
   
@@ -139,9 +151,9 @@ outlier_removal1_by <- function(wk,   w_threshold=5, debug=FALSE) {
   ndays <- wk$Date %>% year %>% table
   nyears <- wk$Date %>% year %>% table %>% length
   nseasonal <- floor(mean(ndays))
-  nunique <- length(unique(wk$Value))
+  #nunique <- length(unique(wk$Value))
   
-  # if too few data, then this method won't work
+  # if too few data in each year, then this method won't work well
   if (all(ndays < 9)) {
     message(wk$Station_Number[1], "-", wk$Code[1], ": Too few data data to find outliers")
     return(wk)
@@ -169,7 +181,7 @@ outlier_removal1_by <- function(wk,   w_threshold=5, debug=FALSE) {
                      weights = weights)
     res <- w_resid(mod)
     # calculate re-weighting
-    # weight using residuals with a cut off at threshold
+    # weight using residuals with a cut off at w_threshold
     old_weights <- weights
     weights <- w(res, w_threshold)
     change <- sum(abs(weights - old_weights))
@@ -183,11 +195,3 @@ outlier_removal1_by <- function(wk,   w_threshold=5, debug=FALSE) {
   out
 }
 
-
-if (FALSE) {
-  plot(mod, pages = 1, all = TRUE)
-  xyplot(trans(Value) ~ Date, wk)
-  xyplot(res ~ Date, wk)
-  range(res)
-  range(weights)
-}
