@@ -27,7 +27,7 @@
 #   outlier_removal_by - calls the two base removal methods:
 #      1) outlier_removal_mad
 #      2) outlier_removal_robust_ts
-outlier_removal_by <- function(wk, w_threshold=6, theshold=10, debug=FALSE) {
+outlier_removal_by <- function(wk, w_threshold=5, theshold=10, debug=FALSE) {
 
   # track how many points are being removed
   wk_orig <- wk
@@ -145,7 +145,7 @@ outlier_removal_robust_ts <- function(wk,   w_threshold=5, debug=FALSE) {
   iterations <- 0
   # These could be generalised in a control list
   change_thresh <- 0.001
-  iter_max <- 50
+  iter_max <- 10
   
   # setup model
   ndays <- wk$Date %>% year %>% table
@@ -184,6 +184,8 @@ outlier_removal_robust_ts <- function(wk,   w_threshold=5, debug=FALSE) {
     # weight using residuals with a cut off at w_threshold
     old_weights <- weights
     weights <- w(res, w_threshold)
+    # do not downweight small values
+    weights[res<0] <- 1
     change <- sum(abs(weights - old_weights))
   }
   
