@@ -14,7 +14,7 @@
 # 
 # The method is based on Hampels Mean Absolute Deviation approach for time series
 #
-# The method is a combination of two teqniques:
+# The method is a combination of two tecniques:
 #  1. remove large outliers when compared to the MAD of the whole time series
 #  2. 
 #     a. fit a reasonably flexible time series model to identify 
@@ -27,14 +27,14 @@
 #   outlier_removal_by - calls the two base removal methods:
 #      1) outlier_removal_mad
 #      2) outlier_removal_robust_ts
-outlier_removal_by <- function(wk, w_threshold=5, theshold=10, debug=FALSE) {
+outlier_removal_by <- function(wk, w_threshold=6, theshold=10, debug=FALSE) {
 
   # track how many points are being removed
   wk_orig <- wk
   ndata <- nrow(wk)  
   
-  # do by mad - finds extreme values at head and tail of time series
-  wk %<>% do(outlier_removal_mad(., threshold = theshold))
+  # do by mad - finds extreme values
+  wk %<>% outlier_removal_mad(., threshold = theshold)
   ndata <- c(ndata, nrow(wk))
   
   if (ndata[1] - ndata[2] > 20 | ndata[2]/ndata[1] < 0.9) {
@@ -49,7 +49,7 @@ outlier_removal_by <- function(wk, w_threshold=5, theshold=10, debug=FALSE) {
   change <- TRUE
   while(change) {
     # identify outliers and drop
-    wk %<>% do(outlier_removal_robust_ts(., w_threshold = w_threshold, debug = debug))
+    wk %<>% outlier_removal_robust_ts(., w_threshold = w_threshold, debug = debug)
     ndata <- c(ndata, nrow(wk))
     change <- nrow(wk) < orig
     orig <- nrow(wk)
@@ -102,8 +102,11 @@ outlier_removal_mad <- function(wk, threshold = 10) {
 # The model fitted is a GAM, with a seasonal and long term component.  It is iteratively
 # refitted with weights based on the previous model fits residuals, much link the
 # robust linear regression fitting algorithm in MASS.
-outlier_removal_robust_ts <- function(wk,   w_threshold=5, debug=FALSE) {
+outlier_removal_robust_ts <- function(wk,   w_threshold=6, debug=FALSE) {
 
+  # make working copy
+  wkcopy <- wk
+  
   # if data is constant then no outliers
   if (nrow(wk) == 1 || sd(wk$Value) == 0) {
     return(wk)
@@ -114,9 +117,16 @@ outlier_removal_robust_ts <- function(wk,   w_threshold=5, debug=FALSE) {
   }
   
   # re-weighting function
-  w <- function(x, k) {
+  # type used in MASS
+  w1 <- function(x, k) {
     ifelse(abs(x) <= k, 1, k / abs(x))
   }
+  # bisquare weighting function i.e clevland
+  w2 <- function(x, k) {
+    ifelse(abs(x)>k, 0, (1 - x^2/k^2)^2)
+  }
+  # select MASS version for now,
+  w <- w1
   
   # residual function
   w_resid <- function (mod) {
@@ -134,9 +144,8 @@ outlier_removal_robust_ts <- function(wk,   w_threshold=5, debug=FALSE) {
   # in any case, it is still useful to replace zero values by half the minimum non-zero value
   # this is not generally a good thing for modelling, but we are only trying to define a method
   # to identify observations that are too big.
-  wk$.Value <- wk$Value
-  if (any(wk$.Value == 0)) {
-    wk$.Value[wk$Value == 0] <- min(wk$Value[wk$Value>0])/2
+  if (any(wk$Value == 0)) {
+    wk$Value[wk$Value == 0] <- min(wk$Value[wk$Value>0])/2
   }
   
   # initialise weights and convergence criteria
@@ -164,17 +173,18 @@ outlier_removal_robust_ts <- function(wk,   w_threshold=5, debug=FALSE) {
   nt <- min(9, ceiling(nyears/2)+1)
   formula <- 
     if (nyears == 1) {
-      sprintf("trans(.Value) ~ s(decimal_date(Date), m=1, k=%i)", ns)
+      sprintf("trans(Value) ~ s(decimal_date(Date), m=1, k=%i)", ns)
     } else if (nyears == 2) {
-      sprintf("trans(.Value) ~ s(yday(Date), bs='cc', m=1, k=%i) + decimal_date(Date)", ns)
+      sprintf("trans(Value) ~ s(yday(Date), bs='cc', m=1, k=%i) + decimal_date(Date)", ns)
     } else {
-      sprintf("trans(.Value) ~ s(yday(Date), bs='cc', m=1, k=%i) + s(decimal_date(Date), m=1, k=%i)", ns, nt)
+      sprintf("trans(Value) ~ s(yday(Date), bs='cc', m=1, k=%i) + s(decimal_date(Date), m=1, k=%i)", ns, nt)
     }
   formula <- as.formula(formula)
   
   # redo until weights stabalise
   # or too many iterations
   while (change > change_thresh && iterations < iter_max) {
+    iterations <- iterations + 1
     # fit a timeseries model
     mod <- mgcv::gam(formula, 
                      data = wk,
@@ -191,7 +201,7 @@ outlier_removal_robust_ts <- function(wk,   w_threshold=5, debug=FALSE) {
   
   # now drop residuals larger than w_threshold
   # we could set a differnt value here ...
-  out <- wk %>% filter(res < w_threshold) %>% select(-.Value)
+  out <- wk %>% filter(res < w_threshold)
   
   # return cleaned data
   out
