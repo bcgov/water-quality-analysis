@@ -32,7 +32,7 @@ install_packages("dplyr")
 
 install_packages("devtools") 
 
-install_github("bcgov/envreportutils")
-install_github("bcgov/bcmaps")
-install_github("bcgov/rems")
-install_github("bcgov/wqbc")
+devtools::install_github("bcgov/envreportutils")
+devtools::install_github("bcgov/bcmaps")
+devtools::install_github("bcgov/rems")
+devtools::install_github("bcgov/wqbc")
