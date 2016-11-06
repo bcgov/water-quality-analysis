@@ -23,8 +23,11 @@ ems %<>% semi_join(provincial, by = c("Station_Number", "Code"))
 # note we should not eliminate ph, hardness or chloride as required for limits on other variables.
 # Joe needs to check that detection limits are correct
 
-# remove outliers
-ems %<>% outlier_removal(by = c("Station_Number", "Code"))
+## identify outliers
+#ems %<>% outlier_id(by = c("Station_Number", "Code"))
+## remove outliers and drop is_outler column
+#ems %<>% filter(!is_outlier) %>% select(-is_outlier)
+
 
 #
 ems %<>% clean_wqdata(by = c("Station"))
