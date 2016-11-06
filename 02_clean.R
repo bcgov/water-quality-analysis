@@ -23,7 +23,6 @@ ems %<>% semi_join(provincial, by = c("Station_Number", "Code"))
 # note we should not eliminate ph, hardness or chloride as required for limits on other variables.
 # Joe needs to check that detection limits are correct
 
-source("outlier_detection.R")
 # remove outliers
 ems <- ems %>% group_by(Code, Station_Number) %>% do(outlier_removal_by(.,debug=TRUE)) %>% ungroup
 
