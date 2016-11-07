@@ -18,11 +18,11 @@ source("header.R")
 # read in data
 # stations is list of stations for analysis
 # limits is federal stations and variable limits
-limits <- read_csv("meta/2015-16 CESI Parameters and Guideline_BC.csv")
+limits <- read_csv("data-raw/2015-16 CESI Parameters and Guideline_BC.csv")
 # stations is list of all stations of interest
-stations <- read_csv("meta/BC_WQI_Appendix_2016.csv")
+stations <- read_csv("data-raw/BC_WQI_Appendix_2016.csv")
 # variables is list of provincial stations and variables
-variables <- read_csv("meta/variables-by-station.csv")
+variables <- read_csv("data-raw/variables-by-station.csv")
 
 # necessary hack to tidy data!
 limits %<>% rename(Station_Name = `Station Name`, Station_Number = `Station Number`)
