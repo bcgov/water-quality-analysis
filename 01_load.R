@@ -175,7 +175,7 @@ variables$Code <- lookup_codes(variables$Variable)
 # throw away those variables that are not recognised by wqbc
 variables %<>% filter(!is.na(Code))
 
-try(download_historic_data())
+download_historic_data(force = TRUE, ask = FALSE)
 ems_historic <- read_historic_data(stations$EMS_ID)
 ems_current <- get_ems_data()
 
