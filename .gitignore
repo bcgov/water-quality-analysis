@@ -9,3 +9,4 @@ internal.R
 *.pdf
 README.html
 *.rds
+worksheet*.R
