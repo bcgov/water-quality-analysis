@@ -17,6 +17,10 @@ library(readr)
 library(stringr)
 library(tidyr)
 library(zyp)
+library(purrr)
+library(broom)
+
+library(ggplot2)
 
 library(dplyr)
 

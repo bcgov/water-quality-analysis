@@ -28,6 +28,11 @@ install_packages("stringr")
 install_packages("tidyr") 
 install_packages("zyp") 
 
+install_packages("purrr")
+install_packages("broom")
+
+install_packages("ggplot2")
+
 install_packages("dplyr") 
 
 install_packages("devtools") 
