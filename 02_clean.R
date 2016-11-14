@@ -24,13 +24,13 @@ ems %<>% semi_join(provincial, by = c("Station_Number", "Code"))
 # Joe needs to check that detection limits are correct
 
 ## identify outliers
-#ems %<>% outlier_id(by = c("Station_Number", "Code"))
+ems %<>% outlier_id(by = c("Station_Number", "Code"))
 ## remove outliers and drop is_outler column
-#ems %<>% filter(!is_outlier) %>% select(-is_outlier)
+ems %<>% filter(!is_outlier) %>% select(-is_outlier)
 
 
-#
-ems %<>% clean_wqdata(by = c("Station"))
+## clean
+ems %<>% clean_wqdata(by = c("Station_Number"))
 
 ems %<>% as.tbl()
 
