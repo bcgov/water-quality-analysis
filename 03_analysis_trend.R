@@ -19,28 +19,35 @@ ems <- readRDS("out/clean.rds")
 ## 14 Federal-Provincial water quality monitoring stations using the 
 ## Mann-Kendall Sen Slope analysis implemented in the 'zyp' 
 ## R package. 
-
-# work on subset
-data <- filter(ems, Variable == "Copper Total")
-data <- ems
-
-# nest
-ne_data <- data %>% nest(Date, Value, .key = Data)
-
-trend_test <- function(df) {
-  # if there are less than three observations do not run test
-  if (nrow(df) < 3) {
-    return(NULL)
-  }
+trend_test <- function(df, use.median = TRUE) {
   # convert to monthly time series
   df$Month <- month(df$Date)
   df$Year <- year(df$Date)
-  df_ts <- df %>% with(., tapply(Value, list(Year, Month), mean)) %>% as.ts()
+  # if there are less than four years do not run test
+  if (length(unique(df$Year)) < 4) {
+    return(NULL)
+  }
+  # aggregate to monthly observations
+  # use the median monthly observation as default
+  if (use.median) {
+    func <- median
+  } else {
+    func <- mean
+  }
+  df_ts <- df %>% with(., tapply(Value, list(Year, Month), func)) %>% as.ts()
   # test for monotonic trend in the presence of seasonality
   SeasonalMannKendall(df_ts)
 }
 
-ne_data %<>% mutate(Trend = map(Data, trend_test),
+
+# nest data
+nest_ems <- ems %>% nest(Date, Value, .key = Data)
+
+# run test on each time series and extract the p-value
+nest_ems %<>% mutate(Trend = map(Data, trend_test),
                     p_value = map(Trend, function(x) x$tau))
-unnest(ne_data, p_value)
+
+# produce summary table of results
+ems_ptable <- unnest(nest_ems, p_value)
+
 
