@@ -17,7 +17,7 @@ ems <- readRDS("out/clean.rds")
 
 ## analyse trends for the 10-12 water quality parameters measured at 
 ## 14 Federal-Provincial water quality monitoring stations using the 
-## Mann-Kendall Sen Slope analysis implemented in the 'zyp' 
+## Seasonal Mann-Kendall analysis implemented in the 'Kendall' 
 ## R package. 
 trend_test <- function(df, use.median = TRUE) {
   # convert to monthly time series
