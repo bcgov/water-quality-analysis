@@ -16,6 +16,7 @@ library(magrittr)
 library(readr)
 library(stringr)
 library(tidyr)
+library(purrr)
 library(Kendall)
 
 library(dplyr)
