@@ -16,11 +16,7 @@ library(magrittr)
 library(readr)
 library(stringr)
 library(tidyr)
-library(zyp)
-library(purrr)
-library(broom)
-
-library(ggplot2)
+library(Kendall)
 
 library(dplyr)
 
