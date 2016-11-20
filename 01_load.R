@@ -177,7 +177,7 @@ variables %<>% filter(!is.na(Code))
 
 download_historic_data(force = TRUE, ask = FALSE)
 ems_historic <- read_historic_data(stations$EMS_ID)
-ems_current <- get_ems_data()
+ems_current <- get_ems_data(force = TRUE, ask = FALSE)
 
 #print out all ems codes
 #ems_codes <- select(ems, Variable = PARAMETER, Code = PARAMETER_CODE) %>% unique() %>% arrange(Variable) %>% filter(!is.na(Variable)) %>% print()
