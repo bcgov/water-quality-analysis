@@ -23,10 +23,38 @@ ems %<>% semi_join(provincial, by = c("Station_Number", "Code"))
 # note we should not eliminate ph, hardness or chloride as required for limits on other variables.
 # Joe needs to check that detection limits are correct
 
+
+ems %<>% dlply(c("Station_Number", "Code"))
+
+# drop data with less than 10 rows
+ems <- ems[vapply(ems, function(x) nrow(x) >= 10, TRUE)]
+
+# drop data with more than 10% outliers
+ems <- ems[vapply(ems, function(x) sum(x$is_outlier) / nrow(x) <= 0.1, TRUE)]
+
+ems %<>% ldply()
+
 ## identify outliers
 ems %<>% outlier_id(by = c("Station_Number", "Code"))
+
+ems$Variable <- lookup_variables(ems$Code)
+
+pdf()
+plot_timeseries_by(ems, by = c("Station_Number", "Variable", "Code", "Units"), color = "is_outlier")
+dev.off()
+
+
+# convert data to list of data frames by station number and code
+
+
+
+
+# remove problematic time series to short or too many identical?
+ems %<>% filter(!Station_Number == "BC08HB0018" & Code == "PB???T")
+
 ## remove outliers and drop is_outler column
 ems %<>% filter(!is_outlier) %>% select(-is_outlier)
+
 
 
 ## clean
