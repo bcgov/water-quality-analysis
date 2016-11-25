@@ -175,9 +175,9 @@ variables$Code <- lookup_codes(variables$Variable)
 # throw away those variables that are not recognised by wqbc
 variables %<>% filter(!is.na(Code))
 
-download_historic_data(force = TRUE, ask = FALSE)
+download_historic_data(force = .force, ask = .ask)
 ems_historic <- read_historic_data(stations$EMS_ID)
-ems_current <- get_ems_data(force = TRUE, ask = FALSE)
+ems_current <- get_ems_data(force = .force, ask = .ask)
 
 #print out all ems codes
 #ems_codes <- select(ems, Variable = PARAMETER, Code = PARAMETER_CODE) %>% unique() %>% arrange(Variable) %>% filter(!is.na(Variable)) %>% print()

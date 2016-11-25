@@ -26,3 +26,12 @@ library(wqbc)
 
 # clear up workspace
 rm(list = ls())
+
+.force <- TRUE
+.ask <- TRUE
+
+# because I have already forced new downloads and don't need to be asked
+if (Sys.info()[["user"]] == "joe") {
+  .force <- FALSE
+  .ask <- FALSE
+}
