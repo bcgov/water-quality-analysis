@@ -15,34 +15,35 @@ source("header.R")
 ems <- readRDS("out/load.rds")
 provincial <- readRDS("out/provincial.rds")
 
-
 # for now just work on provincial data
 ems %<>% semi_join(provincial, by = c("Station_Number", "Code"))
 
 ems$Variable <- lookup_variables(ems$Code)
 
 # we need to eliminate clearly erroneous data before calling clean_wqdata.
-# we should also entirely eliminate variables at a site with insufficient data.
-# note we should not eliminate ph, hardness or chloride as required for limits on other variables.
 # Joe needs to check that detection limits are correct
 
+# note we should not eliminate ph, hardness or chloride as required for limits on other variables.
+ems_keep <- filter(ems, Variable %in% c("pH", "Hardness Total", "Chloride Total"))
+ems %<>% filter(!Variable %in% c("pH", "Hardness Total", "Chloride Total"))
+
+# group by station
 ems %<>% group_by(Station_Number, Code)
 
-# drop data time series with less than 10 values
+# drop data time series with insufficient data (less than 10 values)
 ems %<>% filter(n() >= 10)
-#ems %<>% ungroup()
 
 ## identify outliers
-ems %<>% outlier_id(by = c("Station_Number", "Code"), mad_threshold = 100, ts_threshold = 10)
+ems %<>% identify_outliers(by = c("Station_Number", "Code"), threshold = 100)
 
-pdf()
-plot_timeseries_by(ems, by = c("Station_Number", "Variable", "Code", "Units"), color = "is_outlier")
+pdf("ems_mad100.pdf")
+plot_timeseries(ems, by = c("Station_Number", "Variable", "Code"), color = "is_outlier")
 dev.off()
 
+## remove outliers and drop Outlier column
+ems %<>% filter(!Outlier) %>% select(-Outlier)
 
-
-## remove outliers and drop is_outler column
-ems %<>% filter(!is_outlier) %>% select(-is_outlier)
+ems <- bind_cols(ems, ems_keep)
 
 ## clean
 ems %<>% clean_wqdata(by = c("Station_Number"))
