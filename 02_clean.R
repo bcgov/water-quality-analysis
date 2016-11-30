@@ -20,13 +20,6 @@ ems %<>% semi_join(provincial, by = c("Station_Number", "Code"))
 
 ems$Variable <- lookup_variables(ems$Code)
 
-# we need to eliminate clearly erroneous data before calling clean_wqdata.
-# Joe needs to check that detection limits are correct
-
-# note we should not eliminate ph, hardness or chloride as required for limits on other variables.
-ems_keep <- filter(ems, Variable %in% c("pH", "Hardness Total", "Chloride Total"))
-ems %<>% filter(!Variable %in% c("pH", "Hardness Total", "Chloride Total"))
-
 # group by station
 ems %<>% group_by(Station_Number, Code)
 
@@ -34,16 +27,14 @@ ems %<>% group_by(Station_Number, Code)
 ems %<>% filter(n() >= 10)
 
 ## identify outliers
-ems %<>% identify_outliers(by = c("Station_Number", "Code"), threshold = 100)
+ems %<>% identify_outliers(by = c("Station_Number", "Code"))
 
-pdf("ems_mad100.pdf")
-plot_timeseries(ems, by = c("Station_Number", "Variable", "Code"), color = "is_outlier")
+pdf("ems_outliers.pdf")
+plot_timeseries(ems, by = c("Station_Number", "Variable", "Code", "Units"))
 dev.off()
 
 ## remove outliers and drop Outlier column
 ems %<>% filter(!Outlier) %>% select(-Outlier)
-
-ems <- bind_cols(ems, ems_keep)
 
 ## clean
 ems %<>% clean_wqdata(by = c("Station_Number"))
@@ -52,3 +43,6 @@ ems %<>% as.tbl()
 
 saveRDS(ems, "out/clean.rds")
 
+pdf("ems_clean.pdf")
+plot_timeseries(ems, by = c("Station_Number", "Variable", "Units"))
+dev.off()
