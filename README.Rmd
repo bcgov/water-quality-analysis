@@ -22,10 +22,11 @@ knitr::opts_chunk$set(echo = TRUE)
 There are four core scripts that are required for the analysis, they need to be run in order:
 
 - 00_install_packages.R
-- 01_load_data.R
+- 01_standardize_data.R
 - 02_clean_data.R
 - 03_test_trends.R
-- 04_calc_wqi.R
+- 04_calc_limits.R
+- 05_calc_wqi.R
 
 The `run_all.R` script can be `source`ed to run it all at once.
 

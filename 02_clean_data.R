@@ -12,10 +12,10 @@
 
 source("header.R")
 
-provincial <- readRDS("output/load.rds")
+ems <- readRDS("output/ems.rds")
 
 # for now just work on provincial data
-provincial %<>% semi_join(readRDS("output/provincial.rds"), by = c("Station", "Code"))
+provincial <- semi_join(ems, readRDS("output/provincial.rds"), by = c("Station", "Code"))
 
 provincial %<>% mutate(Variable = lookup_variables(Code))
 
@@ -26,7 +26,7 @@ provincial %<>% group_by(Station, Code)
 provincial %<>% filter(n() >= 10)
 
 ## identify outliers
-provincial %<>% identify_outliers(by = c("Station", "Code"))
+provincial %<>% identify_outliers(by = c("Station", "Code"), sds = 6)
 
 pdf("output/provincial_outliers.pdf")
 plot_timeseries(provincial, by = c("Station", "Variable", "Code", "Units"))

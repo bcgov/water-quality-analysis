@@ -225,7 +225,7 @@ station %<>% mutate(Station = str_replace(Station, "^BC08", ""))
 limits %<>% mutate(Station = str_replace(Station, "^BC08", ""))
 variables %<>% mutate(Station = str_replace(Station, "^BC08", ""))
 
-saveRDS(ems, "output/load.rds")
+saveRDS(ems, "output/ems.rds")
 saveRDS(station, "output/station.rds")
 saveRDS(limits, "output/federal.rds")
 saveRDS(variables, "output/provincial.rds")

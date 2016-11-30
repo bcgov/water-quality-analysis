@@ -12,7 +12,9 @@
 
 source("header.R")
 
-ems <- readRDS("output/clean.rds")
+provincial <- readRDS("output/provincial_clean.rds")
 
-warning("unclear why calc_limits is erroring out")
-ems %<>% calc_limits(by = "Station")
+provincial %<>% calc_limits(by = "Station")
+
+saveRDS(provincial, "output/provincial_limits.rds")
+

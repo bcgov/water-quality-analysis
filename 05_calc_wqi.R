@@ -10,9 +10,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
 
-source("00_install_packages.R")
-source("01_standardize_data.R")
-source("02_clean_data.R")
-source("03_test_trends.R")
-source("04_calc_limits.R")
-source("05_calc_wqi.R")
+source("header.R")
+
+provincial <- readRDS("output/provincial_limits.rds")
+
+provincial %<>% mutate(Year = year(Date))
+
+warning("needed to ignore station and year as too few variables!!!")
+provincial %<>% calc_wqi()
