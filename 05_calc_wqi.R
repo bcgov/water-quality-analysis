@@ -18,3 +18,5 @@ provincial %<>% mutate(Year = year(Date))
 
 warning("needed to ignore station and year as too few variables!!!")
 provincial %<>% calc_wqi()
+
+plot_wqis(provincial)
