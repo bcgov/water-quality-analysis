@@ -12,7 +12,20 @@
 
 source("header.R")
 
-ems <- readRDS("out/clean.rds")
+# load cleaned data
+provincial <- readRDS("output/provincial_clean.rds")
 
-warning("unclear why calc_limits is erroring out")
-ems %<>% calc_limits(by = "Station")
+provincial %<>% test_trends()
+
+provincial %<>% filter(Years >= 4)
+
+provincial %<>% mutate(Significant = Significance < 0.05)
+
+ggplot(data = provincial, aes(x = Station, y = Tau)) +
+  facet_wrap(~Variable) +
+  geom_hline(yintercept = 0) +
+  geom_point(aes(alpha = Significant, size = Years)) +
+  scale_alpha_discrete(range = c(1/3,1), drop = FALSE) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+
+ggsave("output/trends.png", width = 8, height = 8)

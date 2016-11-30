@@ -2,11 +2,7 @@
 .Rhistory
 .RData
 .Ruserdata
-/out
-/tmp
-/data
-internal.R
+
+/output
 *.pdf
-README.html
-*.rds
-worksheet*.R
+*.png

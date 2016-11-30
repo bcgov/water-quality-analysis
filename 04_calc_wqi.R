@@ -12,3 +12,7 @@
 
 source("header.R")
 
+ems <- readRDS("output/clean.rds")
+
+warning("unclear why calc_limits is erroring out")
+ems %<>% calc_limits(by = "Station")

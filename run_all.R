@@ -10,15 +10,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
 
-source("00_install.R")
-source("01_load.R")
-source("02_clean.R")
-source("03_analysis.R")
-source("04_output.R")
-
-## Make print version
-mon_year <- format(Sys.Date(), "%B%Y")
-outfile <- paste0("envreportbc_[indicator_name]_", mon_year, ".pdf")
-rmarkdown::render("print_ver/[indicator_name].Rmd", output_file = outfile)
-extrafont::embed_fonts(file.path("print_ver/", outfile))
-## You will likely want to "optimize pdf" in Acrobat to make the print version smaller.
+source("00_install_packages.R")
+source("01_load_data.R")
+source("02_clean_data.R")
+source("03_test_trends.R")
+source("04_calc_wqi.R")

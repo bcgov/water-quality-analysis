@@ -27,9 +27,9 @@ install_packages("readr")
 install_packages("stringr") 
 install_packages("tidyr") 
 install_packages("purrr") 
+install_packages("ggplot2") 
 
-install_packages("Kendall") 
-
+install_packages("plyr") 
 install_packages("dplyr") 
 
 install_packages("devtools") 

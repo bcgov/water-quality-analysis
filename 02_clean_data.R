@@ -12,37 +12,36 @@
 
 source("header.R")
 
-ems <- readRDS("out/load.rds")
-provincial <- readRDS("out/provincial.rds")
+provincial <- readRDS("output/load.rds")
 
 # for now just work on provincial data
-ems %<>% semi_join(provincial, by = c("Station_Number", "Code"))
+provincial %<>% semi_join(readRDS("output/provincial.rds"), by = c("Station", "Code"))
 
-ems$Variable <- lookup_variables(ems$Code)
+provincial %<>% mutate(Variable = lookup_variables(Code))
 
 # group by station
-ems %<>% group_by(Station_Number, Code)
+provincial %<>% group_by(Station, Code)
 
 # drop data time series with insufficient data (less than 10 values)
-ems %<>% filter(n() >= 10)
+provincial %<>% filter(n() >= 10)
 
 ## identify outliers
-ems %<>% identify_outliers(by = c("Station_Number", "Code"))
+provincial %<>% identify_outliers(by = c("Station", "Code"))
 
-pdf("ems_outliers.pdf")
-plot_timeseries(ems, by = c("Station_Number", "Variable", "Code", "Units"))
+pdf("output/provincial_outliers.pdf")
+plot_timeseries(provincial, by = c("Station", "Variable", "Code", "Units"))
 dev.off()
 
 ## remove outliers and drop Outlier column
-ems %<>% filter(!Outlier) %>% select(-Outlier)
+provincial %<>% filter(!Outlier) %>% select(-Outlier)
 
 ## clean
-ems %<>% clean_wqdata(by = c("Station_Number"))
+provincial %<>% clean_wqdata(by = c("Station"))
 
-ems %<>% as.tbl()
+provincial %<>% as.tbl()
 
-saveRDS(ems, "out/clean.rds")
+saveRDS(provincial, "output/provincial_clean.rds")
 
-pdf("ems_clean.pdf")
-plot_timeseries(ems, by = c("Station_Number", "Variable", "Units"))
+pdf("output/provincial_clean.pdf")
+plot_timeseries(provincial, by = c("Station", "Variable", "Units"))
 dev.off()

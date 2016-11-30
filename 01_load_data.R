@@ -12,24 +12,24 @@
 
 # load, tidy and save required data
 
-# ensure required packages are loaded
+# ensure required packages are loaded etc
 source("header.R")
 
 # read in data
 # stations is list of stations for analysis
 # limits is federal stations and variable limits
-limits <- read_csv("data-raw/2015-16 CESI Parameters and Guideline_BC.csv")
+limits <- read_csv("input/2015-16 CESI Parameters and Guideline_BC.csv")
 # stations is list of all stations of interest
-stations <- read_csv("data-raw/BC_WQI_Appendix_2016.csv")
+stations <- read_csv("input/BC_WQI_Appendix_2016.csv")
 # variables is list of provincial stations and variables
-variables <- read_csv("data-raw/variables-by-station.csv")
+variables <- read_csv("input/variables-by-station.csv")
 
 # necessary hack to tidy data!
-limits %<>% rename(Station_Name = `Station Name`, Station_Number = `Station Number`)
+limits %<>% rename(Station_Name = `Station Name`, Station = `Station Number`)
 colnames <- colnames(limits)[c(1:2,seq(4,ncol(limits),by = 2))]
 limits <- limits[3:nrow(limits),c(1:2,seq(3,ncol(limits) - 1,by = 2))]
 colnames(limits) <- colnames
-limits %<>% gather(Variable, Value, -Station_Name, -Station_Number, na.rm = TRUE)
+limits %<>% gather(Variable, Value, -Station_Name, -Station, na.rm = TRUE)
 limits %<>% filter(Value != "formula")
 limits$Units <- limits$Value
 limits$Units %<>% str_replace("(.*)((m|u)g[/]L)$", "\\2") %>%
@@ -46,7 +46,7 @@ limits$UpperLimit <- str_replace_all(limits$Value, "(.*[-])(.*)", "\\2")
 is.na(limits$LowerLimit[limits$LowerLimit == limits$UpperLimit]) <- TRUE
 limits$LowerLimit %<>% as.numeric()
 limits$UpperLimit %<>% as.numeric()
-limits %<>% select(Station_Number, Variable, LowerLimit, UpperLimit, Units)
+limits %<>% select(Station, Variable, LowerLimit, UpperLimit, Units)
 
 warning("the resolution of variable names from station limits table needs checking")
 limits$Variable %<>% str_to_title() %>%
@@ -87,12 +87,12 @@ stations %<>% mutate(Provincial = str_detect(`Core Contract Deliverables`, "Data
                      EndYear = str_replace(`Station Data Time Series (complete calendar years)`, "(^\\d{4,4}-)(\\d{4,4})(.*)", "\\2"))
 
 # rename and select specific columns from stations
-stations %<>% select(Station_Number = `Station Number`, 
+stations %<>% select(Station = `Station Number`, 
                  Station_Name = `Station Name`, 
                  EMS_ID = `EMS ID`,
                  StartYear, EndYear, Provincial)
 
-stations$Federal <- stations$Station_Number %in% limits$Station_Number
+stations$Federal <- stations$Station %in% limits$Station
 
 # rename Water Body as Station_Name and fill in missing values
 variables %<>% rename(Station_Name = `Water Body`) %>% fill(Station_Name)
@@ -166,7 +166,7 @@ variables %<>% bind_rows(extra_variables) %>% unique() %>% arrange(Station_Name,
 rm(extra_variables)
 
 variables %<>% inner_join(stations, by = "Station_Name")
-variables %<>% select(Station_Number, Variable)
+variables %<>% select(Station, Variable)
 
 warning("a bunch of variables not in wqbc (and without limits)")
 # lookup codes from Variable names 
@@ -192,7 +192,7 @@ ems %<>% inner_join(stations, by = c("EMS_ID"))
 rm(stations)
 
 # renames and select specific ems columns
-ems %<>% select(Station_Number, Date = COLLECTION_START, Code = PARAMETER_CODE,  
+ems %<>% select(Station, Date = COLLECTION_START, Code = PARAMETER_CODE,  
                 Value = RESULT, Units = UNIT, 
                 DetectionLimit = METHOD_DETECTION_LIMIT, Variable = PARAMETER, 
                 EMS_ID, Station_Name, Latitude = LATITUDE, Longitude = LONGITUDE, 
@@ -212,15 +212,20 @@ ems %<>% standardize_wqdata()
 # convert to a tibble for nice printing
 ems %<>% as.tbl()
 
-# ensure out folder exists to save data
-dir.create("out", showWarnings = FALSE)
-
-station <- select(ems, Station_Number, EMS_ID, Station_Name, Latitude, Longitude) %>%
+station <- select(ems, Station, EMS_ID, Station_Name, Latitude, Longitude) %>%
   unique()
 
 ems %<>% select(-Variable, -EMS_ID, -Station_Name, -Latitude, -Longitude, -Provincial, -Federal)
 
-saveRDS(ems, "out/load.rds")
-saveRDS(station, "out/station.rds")
-saveRDS(limits, "out/federal.rds")
-saveRDS(variables, "out/provincial.rds")
+# ensure out folder exists to save data
+dir.create("output", showWarnings = FALSE)
+
+ems %<>% mutate(Station = str_replace(Station, "^BC08", ""))
+station %<>% mutate(Station = str_replace(Station, "^BC08", ""))
+limits %<>% mutate(Station = str_replace(Station, "^BC08", ""))
+variables %<>% mutate(Station = str_replace(Station, "^BC08", ""))
+
+saveRDS(ems, "output/load.rds")
+saveRDS(station, "output/station.rds")
+saveRDS(limits, "output/federal.rds")
+saveRDS(variables, "output/provincial.rds")

@@ -15,24 +15,13 @@ Water Quality Index (WQI) and Water Quality Trend Analyses at Selected Ambient M
 
 There are four core scripts that are required for the analysis, they need to be run in order:
 
--   01\_clean.R
--   02\_analysis.R
--   03\_visualize.R
--   04\_output.R
+-   00\_install\_packages.R
+-   01\_load\_data.R
+-   02\_clean\_data.R
+-   03\_test\_trends.R
+-   04\_calc\_wqi.R
 
 The `run_all.R` script can be `source`ed to run it all at once.
-
-Most packages used in the analysis can be installed from CRAN using `install.packages()`, but you will need to install [envreportutils](https://github.com/bcgov/envreportutils), [bcmaps](https://github.com/bcgov/bcmaps), [rems](https://github.com/bcgov/rems) and [wqbc](https://github.com/bcgov/wqbc) using devtools:
-
-``` r
-install.packages("devtools") # If you don't already have it installed
-
-library(devtools)
-install_github("bcgov/envreportutils")
-install_github("bcgov/bcmaps")
-install_github("bcgov/rems")
-install_github("bcgov/wqbc")
-```
 
 ### Project Status
 

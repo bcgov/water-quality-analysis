@@ -17,7 +17,7 @@ library(readr)
 library(stringr)
 library(tidyr)
 library(purrr)
-library(Kendall)
+library(ggplot2)
 
 library(plyr)
 library(dplyr)
@@ -31,7 +31,7 @@ rm(list = ls())
 .force <- TRUE
 .ask <- TRUE
 
-# because I have already forced new downloads and don't need to be asked
+# because Joe has already forced new downloads and doesn't need to be asked
 if (Sys.info()[["user"]] == "joe") {
   .force <- FALSE
   .ask <- FALSE
