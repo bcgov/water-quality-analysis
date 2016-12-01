@@ -20,3 +20,5 @@ warning("needed to ignore station and year as too few variables!!!")
 provincial %<>% calc_wqi()
 
 plot_wqis(provincial)
+
+ggsave("output/wqi_provincial.png", width = 4, height = 4)
