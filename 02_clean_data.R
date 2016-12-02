@@ -12,36 +12,30 @@
 
 source("header.R")
 
-ems <- readRDS("output/ems.rds")
+values <- readRDS("output/values.rds")
 
-# for now just work on provincial data
-provincial <- semi_join(ems, readRDS("output/provincial.rds"), by = c("Station", "Code"))
+values %<>% mutate(Variable = lookup_variables(Code))
 
-provincial %<>% mutate(Variable = lookup_variables(Code))
-
-# group by station
-provincial %<>% group_by(Station, Code)
-
-# drop data time series with insufficient data (less than 10 values)
-provincial %<>% filter(n() >= 10)
+# filter those with less than 10 values
+values %<>% group_by(Station, Code) %>% filter(n() >= 10)
 
 ## identify outliers
-provincial %<>% identify_outliers(by = c("Station", "Code"), sds = 6)
+values %<>% identify_outliers(by = c("Station", "Code"), sds = 6)
 
-pdf("output/provincial_outliers.pdf")
-plot_timeseries(provincial, by = c("Station", "Variable", "Code", "Units"))
+pdf("output/outliers.pdf")
+plot_timeseries(values, by = c("Station", "Variable", "Code", "Units"))
 dev.off()
 
 ## remove outliers and drop Outlier column
-provincial %<>% filter(!Outlier) %>% select(-Outlier)
+values %<>% filter(!Outlier) %>% select(-Outlier)
 
 ## clean
-provincial %<>% clean_wqdata(by = c("Station"))
+values %<>% clean_wqdata(by = c("Station"))
 
-provincial %<>% as.tbl()
+values %<>% as.tbl()
 
-saveRDS(provincial, "output/provincial_clean.rds")
+saveRDS(values, "output/values_clean.rds")
 
-pdf("output/provincial_clean.pdf")
-plot_timeseries(provincial, by = c("Station", "Variable", "Units"))
+pdf("output/values_clean.pdf")
+plot_timeseries(values, by = c("Station", "Variable", "Units"))
 dev.off()

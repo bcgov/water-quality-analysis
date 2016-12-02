@@ -13,13 +13,15 @@ Water Quality Index (WQI) and Water Quality Trend Analyses at Selected Ambient M
 
 #### Code
 
-There are four core scripts that are required for the analysis, they need to be run in order:
+There are seven core scripts that are required for the analysis, they need to be run in order:
 
 -   00\_install\_packages.R
--   01\_load\_data.R
+-   01\_standardize\_data.R
 -   02\_clean\_data.R
 -   03\_test\_trends.R
--   04\_calc\_wqi.R
+-   04\_calc\_limits.R
+-   05\_calc\_wqi.R
+-   06\_calc\_wqi\_site\_specific.R
 
 The `run_all.R` script can be `source`ed to run it all at once.
 

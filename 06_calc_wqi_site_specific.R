@@ -12,12 +12,16 @@
 
 source("header.R")
 
-values <- readRDS("output/values_limits.rds")
+values <- readRDS("output/values_clean.rds")
+limits <- readRDS("output/federal_station_variables_limits.rds")
+stations <- readRDS("output/stations.rds")
+
+values %<>% inner_join(limits, by = c("Station", "Variable"))
 
 values %<>% mutate(Year = year(Date))
 
-values %<>% calc_wqi(by = "Station")
+values %<>% calc_wqi(by = c("Station", "Year"))
 
-plot_wqis(values, x = "Station")
+plot_wqis(values, x = "Year") + facet_wrap(~Station)
 
-ggsave("output/wqi_wqbc.png", width = 4, height = 4)
+ggsave("output/wqi_site_specific.png", width = 6, height = 8)

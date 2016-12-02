@@ -15,15 +15,16 @@
 # ensure required packages are loaded etc
 source("header.R")
 
-# read in data
+######## read in data ########
 # stations is list of stations for analysis
 # limits is federal stations and variable limits
 limits <- read_csv("input/2015-16 CESI Parameters and Guideline_BC.csv")
 # stations is list of all stations of interest
 stations <- read_csv("input/BC_WQI_Appendix_2016.csv")
-# variables is list of provincial stations and variables
+# variables is list of provincial stations and variables to look at
 variables <- read_csv("input/variables-by-station.csv")
 
+######## work up station limits ############
 # necessary hack to tidy data!
 limits %<>% rename(Station_Name = `Station Name`, Station = `Station Number`)
 colnames <- colnames(limits)[c(1:2,seq(4,ncol(limits),by = 2))]
@@ -48,7 +49,7 @@ limits$LowerLimit %<>% as.numeric()
 limits$UpperLimit %<>% as.numeric()
 limits %<>% select(Station, Variable, LowerLimit, UpperLimit, Units)
 
-warning("the resolution of variable names from station limits table needs checking")
+# then map chemical names to specific variables
 limits$Variable %<>% str_to_title() %>%
   str_replace("^Ph$", "pH") %>%
   str_replace("^Alkalinity$", "Alkalinity Total") %>%
@@ -78,6 +79,12 @@ limits$Code[limits$Variable == "Chromium"] <- "CR-T"
 limits$Code[limits$Variable == "Oxygen Dissolved"] <- "0014" 
 limits$Code[limits$Variable == "Temperature"] <- "0013" 
 
+# print head of limits which is station specific limits by variable
+print(limits)
+print(sort(unique(limits$Variable)))
+
+############## work up station names ##############
+
 # drop uninformative columns (formatting artefact)
 stations %<>% filter(!is.na(`EMS ID`))
 # drop station with missing data
@@ -93,6 +100,11 @@ stations %<>% select(Station = `Station Number`,
                  StartYear, EndYear, Provincial)
 
 stations$Federal <- stations$Station %in% limits$Station
+
+
+print(stations)
+
+########## work up variables ###########
 
 # rename Water Body as Station_Name and fill in missing values
 variables %<>% rename(Station_Name = `Water Body`) %>% fill(Station_Name)
@@ -126,7 +138,6 @@ variables %<>% gather(Key, Variable, -Station_Name, na.rm = TRUE) %>% select(-Ke
 variables %<>% filter(!Variable %in% c("DO in future"))
 
 # edit Variable so that full names for matching with Variables
-warning("the resolution of variable names from station variables table needs checking")
 variables$Variable %<>% 
   str_replace("^Ag$", "Silver Total") %>%
   str_replace("^Al [(]d[)]$", "Aluminium Dissolved") %>%
@@ -165,31 +176,30 @@ extra_variables <- expand.grid(Station_Name = unique(variables$Station_Name),
 variables %<>% bind_rows(extra_variables) %>% unique() %>% arrange(Station_Name, Variable)
 rm(extra_variables)
 
+# just get those station variables that for stations of interest
 variables %<>% inner_join(stations, by = "Station_Name")
 variables %<>% select(Station, Variable)
 
-warning("a bunch of variables not in wqbc (and without limits)")
-# lookup codes from Variable names 
+# lookup codes from Variable names - Failed to substitute 'Colour', 'E. coli', 'Fecal coliforms', 'Temperature' and 'Turbidity'.
 variables$Code <- lookup_codes(variables$Variable)
 
 # throw away those variables that are not recognised by wqbc
 variables %<>% filter(!is.na(Code))
 
+print(variables)
+
+######## now get actually water quality data from ems
+
 download_historic_data(force = .force, ask = .ask)
 ems_historic <- read_historic_data(stations$EMS_ID)
 ems_current <- get_ems_data(force = .force, ask = .ask)
 
-#print out all ems codes
-#ems_codes <- select(ems, Variable = PARAMETER, Code = PARAMETER_CODE) %>% unique() %>% arrange(Variable) %>% filter(!is.na(Variable)) %>% print()
-#print(ems_codes$Variable)
-#
 ems_current %<>% filter_ems_data(stations$EMS_ID)
 ems <- bind_rows(ems_current, ems_historic)
 rm(ems_current, ems_historic)
 
 # add matching stations data to ems data 
 ems %<>% inner_join(stations, by = c("EMS_ID"))
-rm(stations)
 
 # renames and select specific ems columns
 ems %<>% select(Station, Date = COLLECTION_START, Code = PARAMETER_CODE,  
@@ -206,13 +216,12 @@ ems %<>% filter(Code %in% unique(c(limits$Code, variables$Code)))
 ems$Date %<>% date()
 
 # ensure units etc consistent
-warning("need to check if detection limits are adjusted")
 ems %<>% standardize_wqdata()
 
 # convert to a tibble for nice printing
 ems %<>% as.tbl()
 
-station <- select(ems, Station, EMS_ID, Station_Name, Latitude, Longitude) %>%
+station <- select(ems, Station, EMS_ID, Station_Name, Provincial, Federal, Latitude, Longitude) %>%
   unique()
 
 ems %<>% select(-Variable, -EMS_ID, -Station_Name, -Latitude, -Longitude, -Provincial, -Federal)
@@ -220,12 +229,7 @@ ems %<>% select(-Variable, -EMS_ID, -Station_Name, -Latitude, -Longitude, -Provi
 # ensure out folder exists to save data
 dir.create("output", showWarnings = FALSE)
 
-ems %<>% mutate(Station = str_replace(Station, "^BC08", ""))
-station %<>% mutate(Station = str_replace(Station, "^BC08", ""))
-limits %<>% mutate(Station = str_replace(Station, "^BC08", ""))
-variables %<>% mutate(Station = str_replace(Station, "^BC08", ""))
-
-saveRDS(ems, "output/ems.rds")
-saveRDS(station, "output/station.rds")
-saveRDS(limits, "output/federal.rds")
-saveRDS(variables, "output/provincial.rds")
+saveRDS(ems, "output/values.rds")
+saveRDS(station, "output/stations.rds")
+saveRDS(limits, "output/federal_station_variables_limits.rds")
+saveRDS(variables, "output/provincial_station_variables.rds")

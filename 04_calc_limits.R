@@ -12,9 +12,9 @@
 
 source("header.R")
 
-provincial <- readRDS("output/provincial_clean.rds")
+values <- readRDS("output/values_clean.rds")
 
-provincial %<>% calc_limits(by = "Station")
+values %<>% calc_limits(by = "Station")
 
-saveRDS(provincial, "output/provincial_limits.rds")
+saveRDS(values, "output/values_limits.rds")
 
