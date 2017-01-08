@@ -29,6 +29,7 @@ install_packages("tidyr")
 install_packages("purrr") 
 install_packages("ggplot2") 
 
+install_packages("plyr") 
 install_packages("dplyr") 
 
 install_packages("devtools") 
