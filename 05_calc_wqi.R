@@ -12,3 +12,12 @@
 
 source("header.R")
 
+values <- readRDS("output/values_limits.rds")
+
+values %<>% mutate(Year = year(Date))
+
+values %<>% calc_wqi(by = "Station")
+
+plot_wqis(values, x = "Station")
+
+ggsave("output/wqi_wqbc.png", width = 4, height = 4)

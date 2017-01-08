@@ -10,29 +10,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
 
-# ensure required packages are loaded (in correct order)
-library(lubridate)
-library(magrittr)
-library(readr)
-library(stringr)
-library(tidyr)
-library(purrr)
-library(ggplot2)
+source("header.R")
 
-library(plyr)
-library(dplyr)
+values <- readRDS("output/values_clean.rds")
 
-library(rems)
-library(wqbc)
+values %<>% calc_limits(by = "Station")
 
-# clear up workspace
-rm(list = ls())
+saveRDS(values, "output/values_limits.rds")
 
-.force <- TRUE
-.ask <- TRUE
-
-# because Joe has already forced new downloads and doesn't need to be asked
-if (Sys.info()[["user"]] == "joe") {
-  .force <- FALSE
-  .ask <- FALSE
-}

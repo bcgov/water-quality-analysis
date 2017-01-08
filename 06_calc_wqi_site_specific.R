@@ -12,7 +12,16 @@
 
 source("header.R")
 
-ems <- readRDS("out/clean.rds")
+values <- readRDS("output/values_clean.rds")
+limits <- readRDS("output/federal_station_variables_limits.rds")
+stations <- readRDS("output/stations.rds")
 
-warning("unclear why calc_limits is erroring out")
-ems %<>% calc_limits(by = "Station")
+values %<>% inner_join(limits, by = c("Station", "Variable"))
+
+values %<>% mutate(Year = year(Date))
+
+values %<>% calc_wqi(by = c("Station", "Year"))
+
+plot_wqis(values, x = "Year") + facet_wrap(~Station)
+
+ggsave("output/wqi_site_specific.png", width = 6, height = 8)
