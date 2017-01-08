@@ -28,8 +28,6 @@ install_packages("stringr")
 install_packages("tidyr") 
 install_packages("purrr") 
 
-install_packages("Kendall") 
-
 install_packages("dplyr") 
 
 install_packages("devtools") 
