@@ -3,6 +3,9 @@
 .RData
 .Ruserdata
 
+/out/*
 /output*
 *.pdf
 *.png
+
+worksheet*.R
