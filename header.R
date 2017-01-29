@@ -18,6 +18,8 @@ library(stringr)
 library(tidyr)
 library(purrr)
 library(ggplot2)
+library(subfoldr)
+library(yesno)
 
 library(plyr)
 library(dplyr)
@@ -28,11 +30,24 @@ library(wqbc)
 # clear up workspace
 rm(list = ls())
 
+source("functions.R")
+
+options(subfoldr.ask = FALSE)
+
 .force <- TRUE
 .ask <- TRUE
 
 # because Joe has already forced new downloads and doesn't need to be asked
-if (Sys.info()[["user"]] == "joe") {
+if (user() == "joe") {
   .force <- FALSE
   .ask <- FALSE
 }
+
+# ensure output folder exists
+if (!dir.exists("output")) {
+  if (!.ask || yesno("Create folder 'output' in working directory to store output?")) {
+   dir.create("output") 
+  }
+}
+
+

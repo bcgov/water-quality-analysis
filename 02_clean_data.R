@@ -14,8 +14,6 @@ source("header.R")
 
 values <- readRDS("output/values.rds")
 
-values %<>% mutate(Variable = lookup_variables(Code))
-
 # filter those with less than 10 values
 values %<>% group_by(Station, Code) %>% filter(n() >= 10)
 

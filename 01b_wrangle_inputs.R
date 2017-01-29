@@ -15,14 +15,10 @@
 # ensure required packages are loaded etc
 source("header.R")
 
-######## read in data ########
-# stations is list of stations for analysis
-# limits is federal stations and variable limits
-limits <- read_csv("input/2015-16 CESI Parameters and Guideline_BC.csv")
-# stations is list of all stations of interest
-stations <- read_csv("input/BC_WQI_Appendix_2016.csv")
-# variables is list of provincial stations and variables to look at
-variables <- read_csv("input/variables-by-station.csv")
+set_sub("input")
+
+# load all objects in output/object/input to the workspace
+load_object()
 
 ######## work up station limits ############
 # necessary hack to tidy data!
@@ -183,53 +179,10 @@ variables %<>% select(Station, Variable)
 # lookup codes from Variable names - Failed to substitute 'Colour', 'E. coli', 'Fecal coliforms', 'Temperature' and 'Turbidity'.
 variables$Code <- lookup_codes(variables$Variable)
 
-# throw away those variables that are not recognised by wqbc
+# discard those variables that are not recognised by wqbc
 variables %<>% filter(!is.na(Code))
 
-print(variables)
+set_sub("wrangled")
 
-######## now get actually water quality data from ems
-
-download_historic_data(force = .force, ask = .ask)
-ems_historic <- read_historic_data(stations$EMS_ID)
-ems_current <- get_ems_data(force = .force, ask = .ask)
-
-ems_current %<>% filter_ems_data(stations$EMS_ID)
-ems <- bind_rows(ems_current, ems_historic)
-rm(ems_current, ems_historic)
-
-# add matching stations data to ems data 
-ems %<>% inner_join(stations, by = c("EMS_ID"))
-
-# renames and select specific ems columns
-ems %<>% select(Station, Date = COLLECTION_START, Code = PARAMETER_CODE,  
-                Value = RESULT, Units = UNIT, 
-                DetectionLimit = METHOD_DETECTION_LIMIT, Variable = PARAMETER, 
-                EMS_ID, Station_Name, Latitude = LATITUDE, Longitude = LONGITUDE, 
-                Provincial, Federal,
-                QA_INDEX_CODE)
-
-# ensure just variables of interest are included
-ems %<>% filter(Code %in% unique(c(limits$Code, variables$Code)))
-
-# convert ems$Date from POSIX to Date
-ems$Date %<>% date()
-
-# ensure units etc consistent
-ems %<>% standardize_wqdata()
-
-# convert to a tibble for nice printing
-ems %<>% as.tbl()
-
-station <- select(ems, Station, EMS_ID, Station_Name, Provincial, Federal, Latitude, Longitude) %>%
-  unique()
-
-ems %<>% select(-Variable, -EMS_ID, -Station_Name, -Latitude, -Longitude, -Provincial, -Federal)
-
-# ensure out folder exists to save data
-dir.create("output", showWarnings = FALSE)
-
-saveRDS(ems, "output/values.rds")
-saveRDS(station, "output/stations.rds")
-saveRDS(limits, "output/federal_station_variables_limits.rds")
-saveRDS(variables, "output/provincial_station_variables.rds")
+# save all data frames in the workspace to output/wrangled/object
+save_object()

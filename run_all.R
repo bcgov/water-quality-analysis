@@ -11,7 +11,11 @@
 # See the License for the specific language governing permissions and limitations under the License.
 
 source("00_install_packages.R")
-source("01_standardize_data.R")
+
+source("01_input_data.R")
+source("01b_wrangle_inputs.R")
+source("01c_download_data.R", encoding = "latin1")
+source("01d_standardize_data.R")
 source("02_clean_data.R")
 source("03_test_trends.R")
 source("04_calc_limits.R")
