@@ -26,11 +26,8 @@ ems_current %<>% filter_ems_data(stations$EMS_ID)
 ems <- bind_rows(ems_current, ems_historic)
 rm(ems_current, ems_historic)
 
-# add matching stations data to ems data 
-ems %<>% inner_join(stations, by = c("EMS_ID"))
-
-# ensure just variables of interest are included
-ems %<>% filter(PARAMETER_CODE %in% unique(c(limits$Code, variables$Code)))
+# select just those stations that require
+ems %<>% semi_join(stations, by = c("EMS_ID"))
 
 
 ####### get water quality data from environment canada
@@ -51,28 +48,28 @@ col_types <- cols(
   STATUS_STATUT = col_character()
 )
 
-data_ec <- list()
+ecd <- list()
 
-data_ec$fraser <- read_csv("http://donnees.ec.gc.ca/data/substances/monitor/national-long-term-water-quality-monitoring-data/fraser-river-long-term-water-quality-monitoring-data/Water-Qual-Eau-Fraser-2000-2015v1.csv", 
+ecd$fraser <- read_csv("http://donnees.ec.gc.ca/data/substances/monitor/national-long-term-water-quality-monitoring-data/fraser-river-long-term-water-quality-monitoring-data/Water-Qual-Eau-Fraser-2000-2015v1.csv", 
                            col_types = col_types, locale = locale)
 
-data_ec$columbia <- read_csv("http://donnees.ec.gc.ca/data/substances/monitor/national-long-term-water-quality-monitoring-data/columbia-river-basin-long-term-water-quality-monitoring-data/Water-Qual-Eau-Columbia-2000-2015v1.csv", 
+ecd$columbia <- read_csv("http://donnees.ec.gc.ca/data/substances/monitor/national-long-term-water-quality-monitoring-data/columbia-river-basin-long-term-water-quality-monitoring-data/Water-Qual-Eau-Columbia-2000-2015v1.csv", 
                              col_types = col_types, locale = locale)
 
-data_ec$okanagan <- read_csv("http://donnees.ec.gc.ca/data/substances/monitor/national-long-term-water-quality-monitoring-data/okanagan-similkameen-river-basin-long-term-water-quality-monitoring-data/Water-Qual-Eau-Okanagan-Similkameen-2000-2015v1.csv", 
+ecd$okanagan <- read_csv("http://donnees.ec.gc.ca/data/substances/monitor/national-long-term-water-quality-monitoring-data/okanagan-similkameen-river-basin-long-term-water-quality-monitoring-data/Water-Qual-Eau-Okanagan-Similkameen-2000-2015v1.csv", 
                              col_types = col_types, locale = locale)
 
-data_ec$coastal <- read_csv("http://donnees.ec.gc.ca/data/substances/monitor/national-long-term-water-quality-monitoring-data/pacific-coastal-basin-long-term-water-quality-monitoring-data/Water-Qual-Eau-Pacific-Coastal-Cote-Pacifique-2000-2015v1.csv", 
+ecd$coastal <- read_csv("http://donnees.ec.gc.ca/data/substances/monitor/national-long-term-water-quality-monitoring-data/pacific-coastal-basin-long-term-water-quality-monitoring-data/Water-Qual-Eau-Pacific-Coastal-Cote-Pacifique-2000-2015v1.csv", 
                             col_types = col_types, locale = locale)
 
-data_ec$peace <- read_csv("http://donnees.ec.gc.ca/data/substances/monitor/national-long-term-water-quality-monitoring-data/peace-athabasca-river-basin-long-term-water-quality-monitoring-data/Water-Qual-Eau-Peace-Athabasca-2000-2015v1.csv", 
+ecd$peace <- read_csv("http://donnees.ec.gc.ca/data/substances/monitor/national-long-term-water-quality-monitoring-data/peace-athabasca-river-basin-long-term-water-quality-monitoring-data/Water-Qual-Eau-Peace-Athabasca-2000-2015v1.csv", 
                           col_types = col_types, locale = locale)
 
 # combine list of data frames into a single data frame
-data_ec %<>% bind_rows()
+ecd %<>% bind_rows()
 
 # select just those stations that require
-data_ec %<>% semi_join(stations, by = c(SITE_NO = "Station"))
+ecd %<>% semi_join(stations, by = c(SITE_NO = "Station"))
 
 # read in variable values
 variables_ec <- read_csv("http://donnees.ec.gc.ca/data/substances/monitor/national-long-term-water-quality-monitoring-data/Water-Qual-Eau-VariableInfo.csv", 

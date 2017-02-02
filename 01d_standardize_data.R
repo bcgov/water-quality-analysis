@@ -16,29 +16,32 @@ set_sub("downloaded")
 
 load_object()
 
-ems %<>% tidy_rems_data()
+# tidy up data
+ems %<>% tidy_ems_data()
+
+ecd %<>% tidy_ec_data()
+
+# ensure just known codes included
+# get lookup table of EMS and EC codes
+codes <- mutate(wqbc::codes, Code = compress_ems_codes(Code))
+
+codes %<>% filter(Code %in% unique(c(limits$Code, variables$Code)))
+
+# ensure just variables of interest are included
+ems %<>% filter(Code %in% codes$Code)
+
+ecd %<>% inner_join(select(wqbc::vmv_codes, -Variable), by = c(Code = "VMV_Code"))
+
+ecd %<>% filter(EC_Code %in% codes$EC_Code) %>% select(-Code, -Variable)
+
+ecd %<>% inner_join(select(codes, Code, EC_Code), by = "EC_Code")
+
+ecd %<>% select(-EC_Code)
 
 # ensure units etc consistent
 ems %<>% standardize_wqdata()
+ecd %<>% standardize_wqdata()
 
-# convert to a tibble for nice printing
-ems %<>% as.tbl()
+set_sub("standardized")
 
-# station <- select(ems, Station, EMS_ID, Station_Name, Provincial, Federal, Latitude, Longitude) %>%
-#   unique()
-# 
-# ems %<>% select(-Variable, -EMS_ID, -Station_Name, -Latitude, -Longitude, -Provincial, -Federal)
-
-# ensure out folder exists to save data
-dir.create("output", showWarnings = FALSE)
-
-saveRDS(ems, "output/values.rds")
-saveRDS(station, "output/stations.rds")
-saveRDS(limits, "output/federal_station_variables_limits.rds")
-saveRDS(variables, "output/provincial_station_variables.rds")
-
-
-values %<>% mutate(Variable = lookup_variables(Code))
-
-saveRDS(values, "output/values.rds")
-saveRDS(stations, "output/stations.rds")
+save_object()

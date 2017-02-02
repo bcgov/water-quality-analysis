@@ -12,13 +12,12 @@
 
 source("header.R")
 
-# load cleaned data
-values <- readRDS("output/values_clean.rds")
-# load stations
-stations <- readRDS("output/stations.rds")
+set_sub("cleansed")
 
-provincial <- readRDS("output/provincial_station_variables.rds")
-federal <- readRDS("output/federal_station_variables_limits.rds")
+load_object()
+
+# at least 10 greater than 0..... maybe also percent.....
+#ecd %<>% ddply(c("Station", "Variable") )
 
 trends <- test_trends(values)
 

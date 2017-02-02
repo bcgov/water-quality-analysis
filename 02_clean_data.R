@@ -12,28 +12,29 @@
 
 source("header.R")
 
-values <- readRDS("output/values.rds")
+set_sub("standardized")
 
-# filter those with less than 10 values
-values %<>% group_by(Station, Code) %>% filter(n() >= 10)
+load_object()
 
-## identify outliers
-values %<>% identify_outliers(by = c("Station", "Code"), sds = 6)
+ems %<>% as.tbl()
+ecd %<>% as.tbl()
 
-pdf("output/outliers.pdf")
-plot_timeseries(values, by = c("Station", "Variable", "Code", "Units"))
+ems %<>% clean_wqdata(by = c("Station"))
+ecd %<>% clean_wqdata(by = c("Station"))
+
+## plot time series
+pdf("output/outliers_ems.pdf")
+plot_timeseries(ems, by = c("Station", "Variable", "Units"), size = 2)
+dev.off()
+
+pdf("output/outliers_ecd.pdf")
+plot_timeseries(ecd, by = c("Station", "Variable", "Units"))
 dev.off()
 
 ## remove outliers and drop Outlier column
-values %<>% filter(!Outlier) %>% select(-Outlier)
+ems %<>% filter(!Outlier) %>% select(-Outlier)
+ecd %<>% filter(!Outlier) %>% select(-Outlier)
 
-## clean
-values %<>% clean_wqdata(by = c("Station"))
+set_sub("cleansed")
 
-values %<>% as.tbl()
-
-saveRDS(values, "output/values_clean.rds")
-
-pdf("output/values_clean.pdf")
-plot_timeseries(values, by = c("Station", "Variable", "Units"))
-dev.off()
+save_object()
