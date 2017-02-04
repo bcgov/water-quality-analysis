@@ -16,7 +16,8 @@ set_sub("limits")
 
 load_object()
 
-soe %<>% calc_wqi(by = c("Station_Name", "Station", "Year"))
+soe %<>% calc_wqi()
+print(soe)
 
 cesi %<>% calc_wqi(by = c("Station_Name", "Station", "Year"))
 
