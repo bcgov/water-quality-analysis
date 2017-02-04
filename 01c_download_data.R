@@ -26,10 +26,6 @@ ems_current %<>% filter_ems_data(stations$EMS_ID)
 ems <- bind_rows(ems_current, ems_historic)
 rm(ems_current, ems_historic)
 
-# select just those stations that require
-ems %<>% semi_join(stations, by = c("EMS_ID"))
-
-
 ####### get water quality data from environment canada
 
 locale <- locale(encoding = "latin1")
@@ -68,12 +64,6 @@ ecd$peace <- read_csv("http://donnees.ec.gc.ca/data/substances/monitor/national-
 # combine list of data frames into a single data frame
 ecd %<>% bind_rows()
 
-# select just those stations that require
-ecd %<>% semi_join(stations, by = c(SITE_NO = "Station"))
-
-# read in variable values
-variables_ec <- read_csv("http://donnees.ec.gc.ca/data/substances/monitor/national-long-term-water-quality-monitoring-data/Water-Qual-Eau-VariableInfo.csv", 
-                         locale = locale)
 
 set_sub("downloaded")
 save_object()

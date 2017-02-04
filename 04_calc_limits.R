@@ -12,9 +12,20 @@
 
 source("header.R")
 
-values <- readRDS("output/values_clean.rds")
+set_sub("cleansed")
 
-values %<>% calc_limits(by = "Station")
+load_object()
 
-saveRDS(values, "output/values_limits.rds")
+cesi %<>% inner_join(ecd, by = c("Station", "Variable", "Units")) %>%
+  inner_join(select(stations, Station, Station_Name), by = "Station")
 
+cesi %<>% mutate(Year = year(cesi$Date)) %>% filter(Year %in% 2003:2015)
+
+soe %<>% inner_join(ecd, by = c("Station", "Variable")) %>%
+  inner_join(select(stations, Station, Station_Name), by = "Station")
+
+soe %<>% calc_limits(term = "long-daily")
+
+set_sub("limits")
+
+save_object()

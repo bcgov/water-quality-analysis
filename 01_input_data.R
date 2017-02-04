@@ -18,11 +18,11 @@ source("header.R")
 ######## read in data ########
 # stations is list of stations for analysis
 # limits is federal stations and variable limits
-limits <- read_csv("input/2015-16 CESI Parameters and Guideline_BC.csv")
+cesi <- read_csv("input/2015-16 CESI Parameters and Guideline_BC.csv")
 # stations is list of all stations of interest
 stations <- read_csv("input/BC_WQI_Appendix_2016.csv")
 # variables is list of provincial stations and variables to look at
-variables <- read_csv("input/variables-by-station.csv")
+soe <- read_csv("input/variables-by-station.csv")
 
 # set subfolder in output to input
 set_sub("input")

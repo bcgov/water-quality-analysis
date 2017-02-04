@@ -16,20 +16,34 @@ set_sub("downloaded")
 
 load_object()
 
+# select just those stations that require
+ems %<>% semi_join(stations, by = c("EMS_ID"))
+
+# select just those stations that require
+ecd %<>% semi_join(stations, by = c(SITE_NO = "Station"))
+
 # tidy up data
 ems %<>% tidy_ems_data()
 
 ecd %<>% tidy_ec_data()
 
+# replace ems id with station codes
+ems %<>% select(-Station) %>% inner_join(select(stations, Station, EMS_ID), by = "EMS_ID") %>%
+  mutate(EMS_ID = NULL) %>% select(Station, everything())
+
 # ensure just known codes included
 # get lookup table of EMS and EC codes
 codes <- mutate(wqbc::codes, Code = compress_ems_codes(Code))
 
-codes %<>% filter(Code %in% unique(c(limits$Code, variables$Code)))
+codes %<>% filter(Code %in% unique(c(cesi$Code, soe$Code)))
+
+stopifnot(all(cesi$Code %in% codes$Code))
+stopifnot(all(soe$Code %in% codes$Code))
 
 # ensure just variables of interest are included
 ems %<>% filter(Code %in% codes$Code)
 
+# ecd replace VMV codes 
 ecd %<>% inner_join(select(wqbc::vmv_codes, -Variable), by = c(Code = "VMV_Code"))
 
 ecd %<>% filter(EC_Code %in% codes$EC_Code) %>% select(-Code, -Variable)
@@ -37,6 +51,9 @@ ecd %<>% filter(EC_Code %in% codes$EC_Code) %>% select(-Code, -Variable)
 ecd %<>% inner_join(select(codes, Code, EC_Code), by = "EC_Code")
 
 ecd %<>% select(-EC_Code)
+
+# assumes CTU are Color Units
+ecd$Units[ecd$Units == "CTU"] <- "CU"
 
 # ensure units etc consistent
 ems %<>% standardize_wqdata()

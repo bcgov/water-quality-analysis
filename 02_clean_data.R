@@ -22,9 +22,12 @@ ecd %<>% as.tbl()
 ems %<>% clean_wqdata(by = c("Station"))
 ecd %<>% clean_wqdata(by = c("Station"))
 
+ems %<>% arrange(Station, Variable, Date) %>% as.tbl()
+ecd %<>% arrange(Station, Variable, Date) %>% as.tbl()
+
 ## plot time series
 pdf("output/outliers_ems.pdf")
-plot_timeseries(ems, by = c("Station", "Variable", "Units"), size = 2)
+plot_timeseries(ems, by = c("Station", "Variable", "Units"))
 dev.off()
 
 pdf("output/outliers_ecd.pdf")

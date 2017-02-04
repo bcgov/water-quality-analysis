@@ -12,12 +12,16 @@
 
 source("header.R")
 
-values <- readRDS("output/values_limits.rds")
+set_sub("limits")
 
-values %<>% mutate(Year = year(Date))
+load_object()
 
-values %<>% calc_wqi(by = "Station")
+soe %<>% calc_wqi(by = c("Station_Name", "Station", "Year"))
 
-plot_wqis(values, x = "Station")
+cesi %<>% calc_wqi(by = c("Station_Name", "Station", "Year"))
 
-ggsave("output/wqi_wqbc.png", width = 4, height = 4)
+set_sub("wqi")
+
+plot_wqis(cesi, x = "Year") + facet_wrap(~Station_Name)
+
+save_plot("cesi")

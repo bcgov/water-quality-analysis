@@ -11,39 +11,79 @@
 # See the License for the specific language governing permissions and limitations under the License.
 
 source("header.R")
+library(cccharts)
 
 set_sub("cleansed")
 
 load_object()
 
-# at least 10 greater than 0..... maybe also percent.....
-#ecd %<>% ddply(c("Station", "Variable") )
+# just work on soe stations and variables
+ecd %<>% inner_join(select(soe, Station, Variable), by = c("Station", "Variable"))
 
-trends <- test_trends(values)
+# drop variables which highly variable
+ecd %<>% filter(!Variable %in% c("Temperature", "Colour True", "Oxygen Dissolved"))
 
-trends %<>% filter(Years >= 4)
+# only consider period 2003 to 2015 due to changes in procedures
+ecd %<>% filter(year(Date) >= 2003 & year(Date) <= 2015)
 
-trends %<>% mutate(Significant = Significance < 0.05)
+# set undetected valuse to half detection limit
+undetected <- ecd$Value == 0 & !is.na(ecd$DetectionLimit) & ecd$DetectionLimit > 0
+ecd$Value[undetected] <- ecd$DetectionLimit[undetected] / 2
+
+# prewhiten zhang
+trends <- test_trends(ecd, prewhiten = "zhang")
+
+trends %<>% filter(!is.na(sen_slope))
+
+# plot overview of trend significance and direction
+trends$Significant <- trends$sen_slope_sig
+trends$Direction <- factor("Stable", levels = c("Decreasing", "Stable", "Increasing"))
+trends$Direction[trends$sen_slope < 0] <- "Decreasing"
+trends$Direction[trends$sen_slope > 0] <- "Increasing"
 
 trends %<>% inner_join(stations, by = "Station")
 
-provincial %<>% inner_join(trends, by = c("Station", "Variable"))
-federal %<>% inner_join(trends, by = c("Station", "Variable"))
-
-ggplot(data = provincial, aes(x = EMS_ID, y = Tau)) +
-  facet_wrap(~Variable) +
-  geom_hline(yintercept = 0) +
-  geom_point(aes(alpha = Significant, size = Years)) +
-  scale_alpha_discrete(range = c(1/3,1), drop = FALSE) +
+gp <- ggplot(data = trends, aes(x = Station_Name, y = Variable)) +
+  geom_point(aes(shape = Direction, alpha = Significant)) +
+  scale_shape_manual(values = c(25,21,24)) +
+  scale_alpha_manual(values = c(1/4,1)) +
+  theme_bw() +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
 
-ggsave("output/trends_provincial.png", width = 8, height = 8)
+print(gp)
 
-ggplot(data = federal, aes(x = EMS_ID, y = Tau)) +
-  facet_wrap(~Variable) +
-  geom_hline(yintercept = 0) +
-  geom_point(aes(alpha = Significant, size = Years)) +
-  scale_alpha_discrete(range = c(1/3,1), drop = FALSE) +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+set_sub("trends")
 
-ggsave("output/trends_federal.png", width = 8, height = 8)
+save_plot("trends", width = 6, height = 6)
+
+trends %<>% filter(Significant)
+
+# get raw data used for analysis
+ecd %<>% summarise_for_trends()
+
+# add raw data and slope values
+trends %<>% inner_join(ecd, by = c("Station", "Variable", "Units", "Month"))
+
+# plot data and slopes
+trends %<>% nest(-Station_Name, -Variable, -Units, -Month)
+
+plot_data <- function(data) {
+  intercept <- data$sen_intercept[1]
+  slope <- data$sen_slope[1]
+  
+  intercept <- intercept - slope * min(data$Year)
+  
+  gp <- ggplot(data = data, aes(x = Year, y = Value)) +
+    geom_point() +
+    geom_abline(intercept = intercept, slope = slope) +
+    expand_limits(y = 0)
+  gp
+}
+
+trends %<>% mutate(Plot = map(data, plot_data))
+
+# save to pdf
+pdf("output/trends.pdf")
+for (i in 1:nrow(trends))
+  print(trends$Plot[[i]] + ggtitle(trends$Station_Name[i]) + ylab(str_c(trends$Variable[i], " (", trends$Units[i],")")))
+dev.off()
