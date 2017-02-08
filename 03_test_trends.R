@@ -35,13 +35,15 @@ trends <- test_trends(ecd, prewhiten = "zhang")
 
 trends %<>% filter(!is.na(sen_slope))
 
+trends %<>% inner_join(stations, by = "Station")
+
+filter(select(trends, Station_Name, Variable, sen_slope_lower, sen_slope_upper, sen_intercept, sen_slope_sig, kendall_sig,  Month), sen_slope_sig != kendall_sig)
+
 # plot overview of trend significance and direction
 trends$Significant <- trends$sen_slope_sig
 trends$Direction <- factor("Stable", levels = c("Decreasing", "Stable", "Increasing"))
 trends$Direction[trends$sen_slope < 0] <- "Decreasing"
 trends$Direction[trends$sen_slope > 0] <- "Increasing"
-
-trends %<>% inner_join(stations, by = "Station")
 
 gp <- ggplot(data = trends, aes(x = Station_Name, y = Variable)) +
   geom_point(aes(shape = Direction, alpha = Significant)) +
@@ -61,8 +63,13 @@ trends %<>% filter(Significant)
 # get raw data used for analysis
 ecd %<>% summarise_for_trends()
 
+limits <- group_by(ecd, Station, Variable, Units) %>% summarize(Value = mean(Value)) %>% ungroup()
+limits %<>% calc_limits(by = "Station", term = "long-daily")
+limits %<>% select(Station, Variable, UpperLimit, Units)
+
 # add raw data and slope values
 trends %<>% inner_join(ecd, by = c("Station", "Variable", "Units", "Month"))
+trends %<>% left_join(limits, by = c("Station", "Variable", "Units"))
 
 # plot data and slopes
 trends %<>% nest(-Station_Name, -Variable, -Units, -Month)
@@ -70,6 +77,7 @@ trends %<>% nest(-Station_Name, -Variable, -Units, -Month)
 plot_data <- function(data) {
   intercept <- data$sen_intercept[1]
   slope <- data$sen_slope[1]
+  upper_limit <- data$UpperLimit[1]
   
   intercept <- intercept - slope * min(data$Year)
   
@@ -77,6 +85,9 @@ plot_data <- function(data) {
     geom_point() +
     geom_abline(intercept = intercept, slope = slope) +
     expand_limits(y = 0)
+  
+  if (!is.na(upper_limit))
+    gp <- gp + geom_hline(yintercept = upper_limit)
   gp
 }
 
