@@ -14,7 +14,7 @@ source("00_install_packages.R")
 
 source("01_input_data.R")
 source("01b_wrangle_inputs.R")
-source("01c_download_data.R", encoding = "latin1") # this should be run manually
+source("01c_download_data.R", encoding = "latin1") # this should be run manually due to requirement for user interaction with rems
 source("01d_standardize_data.R")
 source("02_clean_data.R")
 source("03_test_trends.R")

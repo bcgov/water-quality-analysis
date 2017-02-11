@@ -19,12 +19,10 @@ load_object()
 cesi %<>% inner_join(ecd, by = c("Station", "Variable", "Units")) %>%
   inner_join(select(stations, Station, Station_Name), by = "Station")
 
-cesi %<>% mutate(Year = year(cesi$Date)) %>% filter(Year %in% 2003:2015)
-
 soe %<>% inner_join(ecd, by = c("Station", "Variable")) %>%
   inner_join(select(stations, Station, Station_Name), by = "Station")
 
-soe %<>% calc_limits(term = "long-daily")
+soe %<>% calc_limits(by = c("Station", "Station_Name"), term = "long", estimate_variables = TRUE)
 
 set_sub("limits")
 

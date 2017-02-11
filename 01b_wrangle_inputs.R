@@ -181,6 +181,8 @@ stopifnot(all(soe$Station %in% stations$Station[!stations$CESI]))
 
 stopifnot(all(stations$Station %in% c(soe$Station, cesi$Station)))
 
+site_limits %<>% inner_join(wqbc::codes, by = c("Variable", "Units"))
+
 set_sub("wrangled")
 
 # save all data frames in the workspace to output/wrangled/object

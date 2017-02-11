@@ -16,12 +16,18 @@ set_sub("limits")
 
 load_object()
 
-soe %<>% calc_wqi()
-print(soe)
+set_sub("wqi")
+
+soe %<>% mutate(Year = year(soe$Date)) %>% filter(Year %in% 2013:2015)
+cesi %<>% mutate(Year = year(cesi$Date)) %>% filter(Year %in% 2003:2015)
+
+soe %<>% calc_wqi(by = c("Station_Name", "Station", "Year"))
+
+plot_wqis(soe, x = "Year") + facet_wrap(~Station_Name)
+
+save_plot("soe")
 
 cesi %<>% calc_wqi(by = c("Station_Name", "Station", "Year"))
-
-set_sub("wqi")
 
 plot_wqis(cesi, x = "Year") + facet_wrap(~Station_Name)
 

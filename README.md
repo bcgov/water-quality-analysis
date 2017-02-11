@@ -13,17 +13,9 @@ Water Quality Index (WQI) and Water Quality Trend Analyses at Selected Ambient M
 
 #### Code
 
-There are seven core scripts that are required for the analysis, they need to be run in order:
+There are seven core scripts that are required for the analysis, they need to be run in the order specified in `run_all.R`.
 
--   00\_install\_packages.R
--   01\_standardize\_data.R
--   02\_clean\_data.R
--   03\_test\_trends.R
--   04\_calc\_limits.R
--   05\_calc\_wqi.R
--   06\_calc\_wqi\_site\_specific.R
-
-The `run_all.R` script can be `source`ed to run it all at once.
+Currently the `run_all.R` script can't be `source`ed to run them all at once because the `01c_download_data.R` script requires interaction with the `rems` package.
 
 ### Project Status
 
@@ -41,7 +33,7 @@ Please note that this project is released with a [Contributor Code of Conduct](C
 
 ### License
 
-    Copyright 2016 Province of British Columbia
+    Copyright 2017 Province of British Columbia
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.

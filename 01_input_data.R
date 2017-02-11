@@ -24,6 +24,8 @@ stations <- read_csv("input/BC_WQI_Appendix_2016.csv")
 # variables is list of provincial stations and variables to look at
 soe <- read_csv("input/variables-by-station.csv")
 
+site_limits <- read_csv("input/sitespecific_wq_objectives_tristar_mar2016.csv")
+
 # set subfolder in output to input
 set_sub("input")
 

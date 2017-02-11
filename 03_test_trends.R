@@ -30,20 +30,19 @@ ecd %<>% filter(year(Date) >= 2003 & year(Date) <= 2015)
 undetected <- ecd$Value == 0 & !is.na(ecd$DetectionLimit) & ecd$DetectionLimit > 0
 ecd$Value[undetected] <- ecd$DetectionLimit[undetected] / 2
 
-# prewhiten zhang
-trends <- test_trends(ecd, prewhiten = "zhang")
+trends <- test_trends(ecd)
 
-trends %<>% filter(!is.na(sen_slope))
+trends %<>% filter(!is.na(slope))
 
 trends %<>% inner_join(stations, by = "Station")
 
-filter(select(trends, Station_Name, Variable, sen_slope_lower, sen_slope_upper, sen_intercept, sen_slope_sig, kendall_sig,  Month), sen_slope_sig != kendall_sig)
+trends %<>% filter(Variable != "Hardness Total")
 
 # plot overview of trend significance and direction
-trends$Significant <- trends$sen_slope_sig
+trends$Significant <- trends$significance
 trends$Direction <- factor("Stable", levels = c("Decreasing", "Stable", "Increasing"))
-trends$Direction[trends$sen_slope < 0] <- "Decreasing"
-trends$Direction[trends$sen_slope > 0] <- "Increasing"
+trends$Direction[trends$slope < 0] <- "Decreasing"
+trends$Direction[trends$slope > 0] <- "Increasing"
 
 gp <- ggplot(data = trends, aes(x = Station_Name, y = Variable)) +
   geom_point(aes(shape = Direction, alpha = Significant)) +
@@ -71,12 +70,16 @@ limits %<>% select(Station, Variable, UpperLimit, Units)
 trends %<>% inner_join(ecd, by = c("Station", "Variable", "Units", "Month"))
 trends %<>% left_join(limits, by = c("Station", "Variable", "Units"))
 
+trends %<>% arrange(Station_Name, Variable)
+
 # plot data and slopes
 trends %<>% nest(-Station_Name, -Variable, -Units, -Month)
 
 plot_data <- function(data) {
-  intercept <- data$sen_intercept[1]
-  slope <- data$sen_slope[1]
+  intercept <- data$intercept[1]
+  slope <- data$slope[1]
+  lower <- data$lower[1]
+  upper <- data$upper[1]
   upper_limit <- data$UpperLimit[1]
   
   intercept <- intercept - slope * min(data$Year)
@@ -87,7 +90,7 @@ plot_data <- function(data) {
     expand_limits(y = 0)
   
   if (!is.na(upper_limit))
-    gp <- gp + geom_hline(yintercept = upper_limit)
+    gp <- gp + geom_hline(yintercept = upper_limit, color = "blue")
   gp
 }
 
