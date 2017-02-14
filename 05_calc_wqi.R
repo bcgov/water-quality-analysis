@@ -20,9 +20,15 @@ set_sub("wqi")
 
 soe %<>% mutate(Year = year(soe$Date)) %>% filter(Year %in% 2013:2015)
 
-soe %<>% calc_wqi(by = c("Station_Name", "Station", "Year"))
+soe %<>% calc_wqi(by = c("Station_Name", "Station"))
 
-plot_wqis(soe, x = "Year") + facet_wrap(~Station_Name)
+open_window(width = 6, height = 6)
+plot_wqis(soe, x = "Station_Name") + xlab("Station Name") +   
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
 
-save_plot("soe", caption = "The WQI for the SoE stations")
+save_plot("soe", caption = "The Water Quality Indices for the SoE stations based on daily long-term upper limits.")
+
+soe$Station <- NULL
+soe$Category <- NULL
+save_table(soe, caption = "The Water Quality Index table for the SoE stations based on daily long-term upper limits.")
 

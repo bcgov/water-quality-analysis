@@ -104,9 +104,9 @@ for (i in 1:nrow(trends))
 dev.off()
 
 for (i in seq_len(nrow(trends))) {
-  open_window(width = 3, height = 3)
+  open_window(width = 2.5, height = 2.5)
   print(trends$Plot[[i]] + ylab(str_c(trends$Variable[i], " (", trends$Units[i],")")))
   plot_name <- str_c(trends$Station_Name[i], trends$Variable[i], sep = "-")
   plot_name %<>% str_replace_all(" ", "_")
-  save_plot(plot_name, caption = str_c(trends$Station_Name[i], trends$Variable[i], sep = " "))
+  save_plot(plot_name, caption = str_c(trends$Variable[i], " at ", trends$Station_Name[i], ". The blue line indicates the long term upper limit."))
 }
