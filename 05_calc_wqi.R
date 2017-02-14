@@ -19,7 +19,6 @@ load_object()
 set_sub("wqi")
 
 soe %<>% mutate(Year = year(soe$Date)) %>% filter(Year %in% 2013:2015)
-cesi %<>% mutate(Year = year(cesi$Date)) %>% filter(Year %in% 2003:2015)
 
 soe %<>% calc_wqi(by = c("Station_Name", "Station", "Year"))
 
@@ -27,8 +26,3 @@ plot_wqis(soe, x = "Year") + facet_wrap(~Station_Name)
 
 save_plot("soe", caption = "The WQI for the SoE stations")
 
-cesi %<>% calc_wqi(by = c("Station_Name", "Station", "Year"))
-
-plot_wqis(cesi, x = "Year") + facet_wrap(~Station_Name)
-
-save_plot("cesi")

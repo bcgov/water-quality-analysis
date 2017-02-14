@@ -19,7 +19,7 @@ knitr::opts_chunk$set(echo = TRUE)
 #### Data
 
 #### Code
-There are seven core scripts that are required for the analysis, they need to be run in the order specified in `run_all.R`.
+There are nine core scripts that are required for the analysis, they need to be run in the order specified in `run_all.R`.
 
 Currently the `run_all.R` script can't be `source`ed to run them all at once because the `01c_download_data.R` script requires interaction with the `rems` package.
 

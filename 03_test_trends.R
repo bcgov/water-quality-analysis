@@ -48,14 +48,15 @@ gp <- ggplot(data = trends, aes(x = Station_Name, y = Variable)) +
   geom_point(aes(shape = Direction, alpha = Significant)) +
   scale_shape_manual(values = c(25,21,24)) +
   scale_alpha_manual(values = c(1/4,1)) +
+  scale_x_discrete(name = "Station Name") +
   theme_bw() +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
 
 print(gp)
 
 set_sub("trends")
 
-save_plot("trends", caption = "The trends for the SoE stations", width = 6, height = 6)
+save_plot("trends", caption = "The sen slope trend directions and significance (at the 5% level) for the SoE stations and variables of interest with more than five years of data.", width = 6, height = 6)
 
 trends %<>% filter(Significant)
 
@@ -101,3 +102,11 @@ pdf("output/trends.pdf")
 for (i in 1:nrow(trends))
   print(trends$Plot[[i]] + ggtitle(trends$Station_Name[i]) + ylab(str_c(trends$Variable[i], " (", trends$Units[i],")")))
 dev.off()
+
+for (i in seq_len(nrow(trends))) {
+  open_window(width = 3, height = 3)
+  print(trends$Plot[[i]] + ylab(str_c(trends$Variable[i], " (", trends$Units[i],")")))
+  plot_name <- str_c(trends$Station_Name[i], trends$Variable[i], sep = "-")
+  plot_name %<>% str_replace_all(" ", "_")
+  save_plot(plot_name, caption = str_c(trends$Station_Name[i], trends$Variable[i], sep = " "))
+}

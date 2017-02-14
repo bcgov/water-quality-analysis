@@ -16,13 +16,10 @@ set_sub("cleansed")
 
 load_object()
 
-cesi %<>% inner_join(ecd, by = c("Station", "Variable", "Units")) %>%
-  inner_join(select(stations, Station, Station_Name), by = "Station")
-
 soe %<>% inner_join(ecd, by = c("Station", "Variable")) %>%
   inner_join(select(stations, Station, Station_Name), by = "Station")
 
-soe %<>% calc_limits(by = c("Station", "Station_Name"), term = "long", estimate_variables = TRUE)
+soe %<>% calc_limits(by = c("Station", "Station_Name"), term = "long-daily", estimate_variables = TRUE)
 
 set_sub("limits")
 
