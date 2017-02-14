@@ -25,7 +25,7 @@ soe %<>% calc_wqi(by = c("Station_Name", "Station", "Year"))
 
 plot_wqis(soe, x = "Year") + facet_wrap(~Station_Name)
 
-save_plot("soe")
+save_plot("soe", caption = "The WQI for the SoE stations")
 
 cesi %<>% calc_wqi(by = c("Station_Name", "Station", "Year"))
 

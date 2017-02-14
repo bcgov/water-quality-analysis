@@ -55,7 +55,7 @@ print(gp)
 
 set_sub("trends")
 
-save_plot("trends", width = 6, height = 6)
+save_plot("trends", caption = "The trends for the SoE stations", width = 6, height = 6)
 
 trends %<>% filter(Significant)
 
