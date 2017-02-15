@@ -1,5 +1,6 @@
 ---
 output: github_document
+html_preview: true
 ---
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
@@ -8,7 +9,12 @@ output: github_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-<a rel="Exploration" href="https://github.com/BCDevExchange/docs/blob/master/discussion/projectstates.md"><img alt="Being designed and built, but in the lab. May change, disappear, or be buggy." style="border-width:0" src="http://bcdevexchange.org/badge/2.svg" title="Being designed and built, but in the lab. May change, disappear, or be buggy." /></a>
+
+```{r echo=FALSE, results='asis'}
+## Insert 'inspiration', 'exploration', or 'delivery'
+envreportutils::devex_badge('exploration')
+```
+  
 
 ---
 
