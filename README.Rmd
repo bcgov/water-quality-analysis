@@ -34,7 +34,7 @@ This project is under development.
 
 ### Getting Help or Reporting an Issue
 
-To report bugs/issues/feature requests, please file an [issue](https://github.com/bcgov/<repo-name>/issues/).
+To report bugs/issues/feature requests, please file an [issue](https://github.com/bcgov/water-quality-analysis/issues).
 
 ### How to Contribute
 
