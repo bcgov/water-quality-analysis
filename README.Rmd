@@ -1,6 +1,7 @@
 ---
-output: github_document
-html_preview: true
+output: 
+  github_document:
+    html_preview: true
 ---
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
@@ -13,16 +14,13 @@ knitr::opts_chunk$set(echo = TRUE)
 <div id="devex-badge"><a rel="Exploration" href="https://github.com/BCDevExchange/assets/blob/master/README.md"><img alt="Being designed and built, but in the lab. May change, disappear, or be buggy." style="border-width:0" src="https://assets.bcdevexchange.org/images/badges/exploration.svg" title="Being designed and built, but in the lab. May change, disappear, or be buggy." /></a></div>
   
 
-# Water Quality Index (WQI) and Water Quality Trend Analyses at Selected Ambient Monitoring Stations in B.C. 
+# Water Quality Trend Analyses at Selected Ambient Monitoring Stations in B.C. 
 
 ## Usage
 
 ### Data
 
 ### Code
-There are nine core scripts that are required for the analysis, they need to be run in the order specified in `run_all.R`.
-
-Currently the `run_all.R` script can't be `source`ed to run them all at once because the `01c_download_data.R` script requires interaction with the `rems` package.
 
 ## Project Status
 This project is under development.
@@ -39,7 +37,7 @@ Please note that this project is released with a [Contributor Code of Conduct](C
 
 ## License
 
-    Copyright 2017 Province of British Columbia
+    Copyright 2018 Province of British Columbia
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
