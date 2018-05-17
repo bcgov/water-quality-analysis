@@ -11,76 +11,143 @@ library(lubridate)
 library(wqbc)
 library(mgcv)
 library(broom)
+library(schoenberg) # devtools::install_github('gavinsimpson/schoenberg')
 
 fraser <- wq_basin_data("fraser")
 
 fraser_tidy <- tidy_ec_data(fraser)
 fraser_tidy$id <- seq_len(nrow(fraser_tidy))
 
-foo <- add_shortnames(fraser_tidy)
+# foo <- standardize_wqdata(fraser_tidy)
 
 # Try a trend test with Fraser River at Hope
-fraser_hope_arsenic <- filter(foo, SITE_NO == "BC08MF0001", !is.na(PARAM_SHORT_NAME)) %>% 
-  group_by(PARAM_SHORT_NAME, DateTime, Units, ResultLetter, DetectionLimit) %>% 
+fraser_hope_arsenic <- filter(fraser_tidy, 
+                              SITE_NO == "BC08MF0001", 
+                              !is.na(Variable)) %>% 
+  group_by(Variable, DateTime, Units, ResultLetter, DetectionLimit) %>% 
   summarise(avg_val = mean(Value, na.rm = TRUE), 
             n = n()) %>% 
-  filter(PARAM_SHORT_NAME == "ARSENIC TOTAL") %>% 
+  filter(Variable == "ARSENIC TOTAL") %>% 
   ungroup()
 
-
+## Only keep data from 2003 on, Aggregate by month, encode a numeric 'Time' 
+# variable from Date
 fraser_hope_arsenic <- fraser_hope_arsenic %>% 
   mutate(month = month(DateTime, label = FALSE), 
          year = year(DateTime)) %>% 
   filter(year >= 2003) %>% 
-  group_by(PARAM_SHORT_NAME, month, year) %>% 
+  group_by(Variable, month, year, ResultLetter) %>% 
   summarise(month_avg = mean(avg_val, na.rm = TRUE)) %>% 
-  mutate(Date = as.Date(paste(year, month, "15", sep = "-")), 
-         Time = as.numeric(Date) / 1000) %>% 
-  arrange(Date) %>% 
-  ungroup() %>% 
-  as.data.frame()
+  mutate(Date = as.Date(paste(year, month, "15", sep = "-")))
 
-ggplot(fraser_hope_arsenic, aes(x = Date, y = month_avg)) + 
-  geom_point()
 
 # Make it into a complete time series:
 month_df <- data.frame(Date = seq(min(fraser_hope_arsenic$Date), 
                                   max(fraser_hope_arsenic$Date), 
                                   by = "month"))
 
-fraser_hope_arsenic <- right_join(fraser_hope_arsenic, month_df)
+fraser_hope_arsenic <- right_join(fraser_hope_arsenic, month_df) %>% 
+  ungroup() %>% 
+  mutate(month = month(Date, label = FALSE), 
+         year = year(Date), 
+         Time = as.numeric(Date) / 1000) %>% 
+  arrange(Date)
 
-fraser_arsenic_gam <- mgcv::gam(month_avg ~ s(month, bs = "cc", k = 12) + 
-                                  s(Time, k = 20),
-                                data = fraser_hope_arsenic, 
-                                method = "REML")
-
-plot(fraser_arsenic_gam)
-summary(fraser_arsenic_gam$gam)
-
-fraser_arsenic_gam_aug <- broom::augment(fraser_arsenic_gam$gam)
-
-ggplot(fraser_arsenic_gam_aug, aes(x = Time, y = month_avg)) + 
+ggplot(fraser_hope_arsenic, aes(x = Date, y = month_avg)) + 
   geom_point() + 
-  geom_line(aes(y = .fitted))
+  geom_smooth(method = "lm")
+```
 
-summary(fraser_arsenic_gam)
+Fit a gamm with a cyclic cubic spline smooth on month, which guarantees that the
+end of December and beginning of January match up (cyclic), and a smooth trend:
+```{r}
+
+fraser_arsenic_gam <- mgcv::gamm(month_avg ~ s(month, bs = "cc", k = 12) + 
+                                   s(Time, bs = "gp"),
+                                 data = fraser_hope_arsenic, 
+                                 method = "REML")
+
+## Do some checks
+fraser_arsenic_gam
+summary(fraser_arsenic_gam$gam)
+gam.check(fraser_arsenic_gam$gam)
+draw(fraser_arsenic_gam$gam)
+
+# Check the residuals for evidence of autocorrelation:
+acf(resid(fraser_arsenic_gam$lme, main = "ACF"))
+pacf(resid(fraser_arsenic_gam$lme, main = "pACF"))
+# These look fine so don't need to add a correlation structure
+```
+
+Now let's try to plot the trend:
+
+```{r}
+
+pred_data <- tibble(Date = seq(min(fraser_hope_arsenic$Date, na.rm = TRUE), 
+                               max(fraser_hope_arsenic$Date, na.rm = TRUE), 
+                               length.out = 200), 
+                    Time = as.numeric(Date) / 1000, 
+                    month = month(Date))
+
+## predict trend contributions
+p  <- predict(fraser_arsenic_gam$gam, newdata = pred_data, type = "terms", 
+              se.fit = TRUE)
+
+
+## combine with the predictions data, including fitted and SEs
+pred_data <- mutate(pred_data, 
+                    pred = p$fit[,2] + coef(fraser_arsenic_gam$gam)["(Intercept)"],  
+                    se = p$se.fit[,2])
+
+ggplot(pred_data, aes(x = Date, y = pred)) +
+  geom_point(data = fraser_hope_arsenic, aes(y = month_avg)) + 
+  geom_ribbon(aes(ymin = pred - se, ymax = pred + se), fill = "grey") + 
+  geom_line()
 
 ```
 
 
+Testing out USGS seaken method:
 ```{r}
-library(rems)
-library(dplyr)
-library(ggplot2)
-library(lubridate)
-library(wqbc)
+library(smwrStats)
+library(smwrGraphs)
 
-two_year <- get_ems_data(ask = FALSE, dont_update = TRUE)
+fraser_hope_arsenic_sk <- seaken(fraser_hope_arsenic$month_avg)
+fraser_hope_arsenic_sk
+seriesPlot(fraser_hope_arsenic_sk)
 
-two_year_tidy <- tidy_ems_data(two_year)
 
-bar <- add_shortnames(two_year_tidy)
+```
 
+
+EnvStats:
+
+```{r}
+library(EnvStats)
+
+ks_fraser <- kendallSeasonalTrendTest(month_avg ~ month + year, 
+                                      data = fraser_hope_arsenic)
+
+# In order to account for serial autocorrelation there must be the same number
+# of observations in each year (12) - could either pad start and end yearst 
+# with NAs or truncate.
+```
+
+Plot the Seasonal Kendall results: need to rescale the slope and intercept 
+because they are 
+
+```{r}
+slope <- ks_fraser$estimate["slope"] / 365
+# Getting the intercept this way doesn't quite make sense, nor I think does 
+# the overall intercept being calculated as the median intercept from all the
+# seasonal slopes
+int <- (ks_fraser$estimate["slope"] / 12) * 
+  min(as.numeric(fraser_hope_arsenic$Date)) + 
+  ks_fraser$estimate["intercept"]
+
+ggplot(fraser_hope_arsenic, aes(x = Date, y = month_avg)) + 
+  geom_point() + 
+  geom_abline(slope = slope, 
+              intercept = int)
 ```
 
