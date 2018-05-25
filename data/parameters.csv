@@ -10,7 +10,7 @@ Nutrients,Total Nitrogen,NITROGEN TOTAL,does not include NITROGEN TOTAL (CALCD.)
 Nutrients,Total phosphorus,PHOSPHORUS TOTAL,
 Organic Matter,Dissolved organic carbon,CARBON DISSOLVED ORGANIC,
 Ions,Dissolved sulphate,SULPHATE,includes sluphate and sulphate dissolved (not total)
-Ions,Dissolved magnesium,MAGNESIUM DISSOLVED,"includes dissolved, extractable, extractable/unfiltered"
+Ions,Dissolved magnesium,MAGNESIUM,"includes dissolved, extractable, extractable/unfiltered"
 Ions,Dissolved calcium,CALCIUM,"includes dissolved, extractable, extractable/unfiltered"
 Metals,Total aluminum,ALUMINUM TOTAL,
 Metals,Total arsenic,ARSENIC TOTAL,
