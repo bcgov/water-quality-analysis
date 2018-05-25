@@ -1,0 +1,23 @@
+Category,Parameter,Variable_name
+General,Dissolved oxygen,OXYGEN DISSOLVED
+General,Water temperature,TEMPERATURE WATER
+General,Water temperature,TEMPERATURE WATER (FIELD)
+General,Turbidity,TURBIDITY
+General,Specific conductance,SPECIFIC CONDUCTANCE
+General,pH,PH
+General,Hardness,HARDNESS TOTAL (CALCD.) CACO3
+General,True colour,COLOUR TRUE
+Nutrients,Total ,NITROGEN TOTAL
+Nutrients,Total phosphorus,PHOSPHORUS TOTAL
+Organic Matter,Dissolved organic carbon,CARBON DISSOLVED ORGANIC
+Ions,Dissolved sulphate,SULPHATE DISSOLVED
+Ions,Dissolved magnesium,MAGNESIUM DISSOLVED
+Ions,Dissolved calcium,CALCIUM DISSOLVED
+Metals,Total aluminum,ALUMINUM TOTAL
+Metals,Total arsenic,ARSENIC TOTAL
+Metals,Total cadmium,CADMIUM TOTAL
+Metals,Total copper,COPPER TOTAL
+Metals,Total lead,LEAD TOTAL
+Metals,Total molybdenum,MOLYBDENUM TOTAL
+Metals,Total selenium,SELENIUM TOTAL
+Metals,Total zinc,ZINC TOTAL
