@@ -11,20 +11,46 @@ library(lubridate)
 library(wqbc)
 library(mgcv)
 library(broom)
+library(readr)
 library(schoenberg) # devtools::install_github('gavinsimpson/schoenberg')
+library(here)
 
 fraser <- wq_basin_data("fraser")
 
-fraser_tidy <- tidy_ec_data(fraser)
-fraser_tidy$id <- seq_len(nrow(fraser_tidy))
+# load parameters:
+params <- read_csv(here::here("data/parameters.csv"))
 
+fraser_tidy <- tidy_ec_data(fraser) %>% 
+  add_shortnames() %>% 
+  filter(PARAM_SHORT_NAME %in% params$Variable_short_name, 
+         year(DateTime) >= 2003,
+         Value > -999) %>% 
+  mutate(year = year(DateTime), 
+         month = month(DateTime))
+
+```
+
+```{r}
+fraser_hope <- fraser_tidy %>% 
+  filter(SITE_NO == "BC08MF0001") %>% 
+  mutate(censored = ifelse(is.na(ResultLetter), FALSE, TRUE))
+
+  
+ggplot(fraser_hope, aes(x = DateTime, y = Value)) + 
+  facet_wrap(~PARAM_SHORT_NAME, scales = "free_y") + 
+  geom_point(aes(colour = censored)) + 
+  geom_smooth()
+```
+
+
+```{r}
 # foo <- standardize_wqdata(fraser_tidy)
 
 # Try a trend test with Fraser River at Hope
-fraser_hope_arsenic <- filter(fraser_tidy, 
+fraser_hope_arsenic <- filter(fraser_hope, 
                               SITE_NO == "BC08MF0001", 
                               !is.na(Variable)) %>% 
-  group_by(Variable, DateTime, Units, ResultLetter, DetectionLimit) %>% 
+  group_by(PARAM_SHORT_NAME, DateTime, Units, ResultLetter, DetectionLimit) %>% 
   summarise(avg_val = mean(Value, na.rm = TRUE), 
             n = n()) %>% 
   filter(Variable == "ARSENIC TOTAL") %>% 
@@ -69,7 +95,7 @@ fraser_arsenic_gam <- mgcv::gamm(month_avg ~ s(month, bs = "cc", k = 12) +
 # Check the residuals for evidence of autocorrelation:
 acf(resid(fraser_arsenic_gam$lme, main = "ACF"))
 pacf(resid(fraser_arsenic_gam$lme, main = "pACF"))
-# These look fine so don't need to add a correlation structure
+# These look fine (I think) so don't need to add a correlation structure
 
 ## Do some checks
 fraser_arsenic_gam
