@@ -3,7 +3,7 @@ title: "Trend Exploration"
 output: html_notebook
 ---
 
-```{r EC-data}
+```{r setup, include=FALSE}
 library(canwqdata)
 library(dplyr)
 library(ggplot2)
@@ -14,26 +14,45 @@ library(broom)
 library(readr)
 library(schoenberg) # devtools::install_github('gavinsimpson/schoenberg')
 library(here)
+library(feather)
+```
 
-fraser <- wq_basin_data("fraser")
 
+```{r load, eval=FALSE}
+bc_stations <- wq_sites() %>% 
+  filter(PROV_TERR == "BC")
+
+bc_data <- wq_site_data(unique(bc_stations$SITE_NO)) %>% 
+  left_join(select(bc_stations, SITE_NO, PEARSEDA), 
+            by = "SITE_NO")
+
+bc_data$VALUE_VALEUR[bc_data$VALUE_VALEUR < -999] <- NA
+
+write_feather(bc_data, here::here("data/bcdata.feather"))
+```
+
+
+```{r EC-data}
 # load parameters:
+bc_data <- read_feather(here::here("data/bcdata.feather"))
 params <- read_csv(here::here("data/parameters.csv"))
 
-fraser_tidy <- tidy_ec_data(fraser) %>% 
+bc_tidy <- tidy_ec_data(bc_data, cols = "PEARSEDA") %>% 
   add_shortnames() %>% 
   filter(PARAM_SHORT_NAME %in% params$Variable_short_name, 
-         year(DateTime) >= 2003,
-         Value > -999) %>% 
+         year(DateTime) >= 2003) %>% 
   mutate(year = year(DateTime), 
          month = month(DateTime))
+
+fraser <- filter(bc_tidy, PEARSEDA == "FRASER-LOWER MAINLAND")
+
 
 ```
 
 ```{r}
-fraser_hope <- fraser_tidy %>% 
+fraser_hope <- fraser %>% 
   filter(SITE_NO == "BC08MF0001") %>% 
-  mutate(censored = ifelse(is.na(ResultLetter), FALSE, TRUE))
+  mutate(censored = !is.na(ResultLetter))
 
   
 ggplot(fraser_hope, aes(x = DateTime, y = Value)) + 
@@ -49,11 +68,11 @@ ggplot(fraser_hope, aes(x = DateTime, y = Value)) +
 # Try a trend test with Fraser River at Hope
 fraser_hope_arsenic <- filter(fraser_hope, 
                               SITE_NO == "BC08MF0001", 
-                              !is.na(Variable)) %>% 
-  group_by(PARAM_SHORT_NAME, DateTime, Units, ResultLetter, DetectionLimit) %>% 
+                              !is.na(PARAM_SHORT_NAME)) %>% 
+  group_by(PARAM_SHORT_NAME, DateTime, Units, censored, DetectionLimit) %>% 
   summarise(avg_val = mean(Value, na.rm = TRUE), 
             n = n()) %>% 
-  filter(Variable == "ARSENIC TOTAL") %>% 
+  filter(PARAM_SHORT_NAME == "MOLYBDENUM TOTAL") %>% 
   ungroup()
 
 ## Only keep data from 2003 on, Aggregate by month, encode a numeric 'Time' 
@@ -62,7 +81,7 @@ fraser_hope_arsenic <- fraser_hope_arsenic %>%
   mutate(month = month(DateTime, label = FALSE), 
          year = year(DateTime)) %>% 
   filter(year >= 2003) %>% 
-  group_by(Variable, month, year, ResultLetter) %>% 
+  group_by(PARAM_SHORT_NAME, month, year, censored) %>% 
   summarise(month_avg = mean(avg_val, na.rm = TRUE)) %>% 
   mutate(Date = as.Date(paste(year, month, "15", sep = "-")))
 
@@ -80,7 +99,8 @@ fraser_hope_arsenic <- right_join(fraser_hope_arsenic, month_df) %>%
   arrange(Date)
 
 ggplot(fraser_hope_arsenic, aes(x = Date, y = month_avg)) + 
-  geom_point() + 
+  geom_point(aes(colour = censored)) + 
+  geom_line() +
   geom_smooth(method = "lm")
 ```
 
@@ -88,7 +108,8 @@ Fit a gamm with a cyclic cubic spline smooth on month, which guarantees that the
 end of December and beginning of January match up (cyclic), and a smooth trend:
 ```{r}
 fraser_arsenic_gam <- mgcv::gamm(month_avg ~ s(month, bs = "cc", k = 12) + 
-                                   s(Time, k = 20),
+                                   s(Time, k = 20), 
+                                 # correlation = corARMA(form = ~ 1, p = 2),
                                  data = fraser_hope_arsenic, 
                                  method = "REML")
 
