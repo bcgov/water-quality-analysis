@@ -44,8 +44,23 @@ bc_tidy <- tidy_ec_data(bc_data, cols = "PEARSEDA") %>%
   add_shortnames() %>% 
   filter(PARAM_SHORT_NAME %in% params$Variable_short_name, 
          year(DateTime) >= 2003) %>% 
+  group_by(SITE_NO, PARAM_SHORT_NAME, DateTime, Units, DetectionLimit, 
+           ResultLetter, PEARSEDA) %>% 
+  summarise(Value = mean(Value, na.rm = TRUE), 
+            n = n()) %>% 
+  ungroup() %>% 
   mutate(year = year(DateTime), 
          month = month(DateTime))
+
+bc_site_var_summary <- bc_tidy %>% group_by(SITE_NO, PARAM_SHORT_NAME) %>% 
+  summarize(min_year = min(year, na.rm = TRUE), 
+            max_year = max(year, na.rm = TRUE), 
+            nyears = max_year - min_year) %>% 
+  filter(max_year >= 2013, nyears >= 10) %>% 
+  ungroup()
+
+bc_tidy <- semi_join(bc_tidy, bc_site_var_summary, 
+                     by = c("SITE_NO", "PARAM_SHORT_NAME"))
 
 fraser <- filter(bc_tidy, PEARSEDA == "FRASER-LOWER MAINLAND")
 
@@ -54,8 +69,8 @@ fraser <- filter(bc_tidy, PEARSEDA == "FRASER-LOWER MAINLAND")
 
 ```{r}
 plot_station_vars(fraser, "BC08MF0001")
-sites <- unique(fraser$SITE_NO)
-var_plots <- map(sites, ~ plot_station_vars(fraser, .x)) %>% 
+sites <- unique(bc_tidy$SITE_NO)
+var_plots <- map(sites, ~ plot_station_vars(bc_tidy, .x)) %>% 
   set_names(sites)
 
 
