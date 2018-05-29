@@ -15,6 +15,9 @@ library(readr)
 library(schoenberg) # devtools::install_github('gavinsimpson/schoenberg')
 library(here)
 library(feather)
+library(purrr)
+source(here::here("R/functions.R"))
+dir.create(here::here("out"))
 ```
 
 
@@ -50,15 +53,14 @@ fraser <- filter(bc_tidy, PEARSEDA == "FRASER-LOWER MAINLAND")
 ```
 
 ```{r}
-fraser_hope <- fraser %>% 
-  filter(SITE_NO == "BC08MF0001") %>% 
-  mutate(censored = !is.na(ResultLetter))
+plot_station_vars(fraser, "BC08MF0001")
+sites <- unique(fraser$SITE_NO)
+var_plots <- map(sites, ~ plot_station_vars(fraser, .x)) %>% 
+  set_names(sites)
 
-  
-ggplot(fraser_hope, aes(x = DateTime, y = Value)) + 
-  facet_wrap(~PARAM_SHORT_NAME, scales = "free_y") + 
-  geom_point(aes(colour = censored)) + 
-  geom_smooth()
+
+iwalk(var_plots, ~ ggsave(file.path(here::here("out"), paste0(.y, ".pdf")), 
+                          .x, width = 10.5, height = 8, units = "in"))
 ```
 
 
@@ -72,7 +74,7 @@ fraser_hope_arsenic <- filter(fraser_hope,
   group_by(PARAM_SHORT_NAME, DateTime, Units, censored, DetectionLimit) %>% 
   summarise(avg_val = mean(Value, na.rm = TRUE), 
             n = n()) %>% 
-  filter(PARAM_SHORT_NAME == "MOLYBDENUM TOTAL") %>% 
+  filter(PARAM_SHORT_NAME == "ARSENIC TOTAL") %>% 
   ungroup()
 
 ## Only keep data from 2003 on, Aggregate by month, encode a numeric 'Time' 
