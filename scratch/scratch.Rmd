@@ -83,9 +83,10 @@ iwalk(var_plots, ~ ggsave(file.path(here::here("out"), paste0(.y, ".pdf")),
 # foo <- standardize_wqdata(fraser_tidy)
 
 # Try a trend test with Fraser River at Hope
-fraser_hope_arsenic <- filter(fraser_hope, 
+fraser_hope_arsenic <- filter(fraser, 
                               SITE_NO == "BC08MF0001", 
                               !is.na(PARAM_SHORT_NAME)) %>% 
+  mutate(censored = !is.na(ResultLetter)) %>% 
   group_by(PARAM_SHORT_NAME, DateTime, Units, censored, DetectionLimit) %>% 
   summarise(avg_val = mean(Value, na.rm = TRUE), 
             n = n()) %>% 
