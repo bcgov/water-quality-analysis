@@ -5,9 +5,7 @@ plot_station_vars <- function(data, station, x = "DateTime", y = "Value",
   y <- rlang::sym(y)
   var <- rlang::sym(var)
   
-  data <- data %>% 
-    filter(SITE_NO == station) %>% 
-    mutate(censored = !is.na(ResultLetter))
+  data <- data %>% filter(SITE_NO == station)
   
   if (!which == "all") {
     data <- filter(data, !!var %in% which)
