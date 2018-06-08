@@ -89,7 +89,8 @@ iwalk(var_plots, ~ ggsave(file.path(here::here("out"), paste0(.y, ".pdf")),
 fraser_hope_arsenic <- filter(fraser, 
                               SITE_NO == "BC08MF0001",
                               PARAM_SHORT_NAME == "ARSENIC TOTAL") %>% 
-  ungroup()
+  ungroup() %>% 
+  clean_wqdata(sds = 5, delete_outliers = TRUE)
 
 ## Only keep data from 2003 on, Aggregate by month, encode a numeric 'Time' 
 # variable from Date
@@ -109,37 +110,38 @@ fraser_hope_arsenic <- filter(fraser,
 
 fraser_hope_arsenic <- fraser_hope_arsenic %>% #right_join(fraser_hope_arsenic, month_df) %>% 
   ungroup() %>% 
-  mutate(Date = as.Date(DateTime),
-    month = month(Date, label = FALSE), 
+  mutate(censored = make_censor(ResultLetter), 
+         month = month(Date, label = FALSE), 
          year = year(Date), 
          Time = as.numeric(Date) / 1000) %>% 
   arrange(Date)
 
 ggplot(fraser_hope_arsenic, aes(x = Date, y = Value)) + 
-  geom_point(aes(colour = censored)) + 
+  geom_point(aes(shape = censored, colour = Outlier)) + 
   geom_line() +
   geom_smooth(method = "lm")
 ```
 
-Fit a gamm with a cyclic cubic spline smooth on month, which guarantees that the
+Fit a gam with a cyclic cubic spline smooth on month, which guarantees that the
 end of December and beginning of January match up (cyclic), and a smooth trend:
 ```{r}
-fraser_arsenic_gam <- mgcv::gamm(Value ~ s(month, bs = "cc", k = 12) + 
-                                   s(Time, k = 20), 
-                                 # correlation = corARMA(form = ~ 1, p = 2),
+fraser_arsenic_gam <- mgcv::gam(Value ~ s(month, bs = "cc", k = 12) + 
+                                   s(Time, bs = "cr", k = 20), 
+                                 # correlation = corCAR1(form = ~ 1 | year),
                                  data = fraser_hope_arsenic, 
+                                 family = Gamma,
                                  method = "REML")
 
 # Check the residuals for evidence of autocorrelation:
-acf(resid(fraser_arsenic_gam$lme, main = "ACF"))
-pacf(resid(fraser_arsenic_gam$lme, main = "pACF"))
+acf(resid(fraser_arsenic_gam, main = "ACF"))
+pacf(resid(fraser_arsenic_gam, main = "pACF"))
 # These look fine (I think) so don't need to add a correlation structure
 
 ## Do some checks
 fraser_arsenic_gam
-summary(fraser_arsenic_gam$gam)
-gam.check(fraser_arsenic_gam$gam)
-draw(fraser_arsenic_gam$gam)
+summary(fraser_arsenic_gam)
+gam.check(fraser_arsenic_gam)
+draw(fraser_arsenic_gam)
 # not great
 ```
 
@@ -147,10 +149,11 @@ Those checks on the model fit aren't great - try logging the response variable
 (could also try with a different family, probably Gamma)
 
 ```{r}
-fraser_hope_arsenic$log_avg <- log(fraser_hope_arsenic$month_avg)
+fraser_hope_arsenic$log_avg <- log(fraser_hope_arsenic$Value)
 
 fraser_arsenic_gam_log <- mgcv::gamm(log_avg ~ s(month, bs = "cc", k = 12) + 
                                    s(Time, k = 20),
+                                   correlation = corCAR1(),
                                  data = fraser_hope_arsenic, 
                                  method = "REML")
 
