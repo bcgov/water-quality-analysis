@@ -193,10 +193,42 @@ pred_data <- mutate(pred_data,
 
 # Plot - note need to exp() the predicted values because they were logged
 ggplot(pred_data, aes(x = Date, y = exp(pred))) +
-  geom_point(data = fraser_hope_arsenic, aes(y = month_avg)) + 
+  geom_point(data = fraser_hope_arsenic, aes(y = Value)) + 
   geom_ribbon(aes(ymin = exp(pred - se), ymax = exp(pred + se)), fill = "grey") + 
   geom_line()
 
+```
+
+
+Testing out with brms, which opens up more distributions and allows modelling 
+of censored data, as well as distributional modelling of input parameters:
+```{r}
+library(brms)
+library(bayesplot)
+options(mc.cores = 4L)
+
+# foo <- brm(bf(Value ~ s(month, bs = "cc", k = 12) + 
+#          s(Time, k = 20)),
+#      data = fraser_hope_arsenic, 
+#      family = Gamma(link = "log")) # log link to ensure not negative
+# 
+# pairs(foo, off_diag_args = list(size = 0.1))
+# pp_check(foo)
+# pp_check(foo, type = "ecdf_overlay")
+
+foo <- brm(bf(Value| cens(censored) ~ s(month, bs = "cc", k = 12) +
+                s(Time, k = 20), 
+              family = gen_extreme_value(link = "log")),
+           data = fraser_hope_arsenic, 
+           # family = lognormal(), 
+           control = list(adapt_delta = 0.99))
+
+pp_check(foo)
+pp_check(foo, type = "ecdf_overlay")
+summary(foo)
+pairs(foo, off_diag_args = list(size = 0.1))
+plot(foo, N = 2, ask = FALSE)
+plot(marginal_effects(foo), ask = FALSE, points = TRUE)
 ```
 
 
