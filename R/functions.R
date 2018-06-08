@@ -19,3 +19,11 @@ plot_station_vars <- function(data, station, x = "DateTime", y = "Value",
     ggtitle(paste(data$PEARSEDA[1], station, sep = ": ")) + 
     theme(strip.text = element_text(size = rel(0.6)))
 }
+
+make_censor <- function(x) {
+  case_when(
+    is.na(x) ~ "none", 
+    x == "<" ~ "left", 
+    x == ">" ~ "right"
+  )
+}
