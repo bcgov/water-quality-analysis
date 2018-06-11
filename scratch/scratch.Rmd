@@ -65,6 +65,8 @@ bc_site_var_summary <- bc_tidy %>% group_by(SITE_NO, PARAM_SHORT_NAME) %>%
 bc_tidy <- semi_join(bc_tidy, bc_site_var_summary, 
                      by = c("SITE_NO", "PARAM_SHORT_NAME"))
 
+bc_nested <- tidyr::nest(bc_tidy, -PEARSEDA, -SITE_NO, -PARAM_SHORT_NAME)
+
 fraser <- filter(bc_tidy, PEARSEDA == "FRASER-LOWER MAINLAND")
 
 
