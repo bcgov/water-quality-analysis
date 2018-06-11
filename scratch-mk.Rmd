@@ -47,41 +47,31 @@ bc_site_var_summary <- bc_tidy %>% group_by(SITE_NO, PARAM_SHORT_NAME) %>%
 bc_tidy <- semi_join(bc_tidy, bc_site_var_summary, 
                      by = c("SITE_NO", "PARAM_SHORT_NAME"))
 
-fraser <- filter(bc_tidy, PEARSEDA == "FRASER-LOWER MAINLAND")
+bc_monthly <- bc_tidy %>% 
+  clean_wqdata(by = c("SITE_NO", "PARAM_SHORT_NAME", "PEARSEDA")) %>% 
+  mutate(month = month(Date, label = FALSE),
+         year = year(Date), 
+         censored = make_censor(ResultLetter)) %>% 
+  group_by(PEARSEDA, SITE_NO, PARAM_SHORT_NAME, month, year, censored) %>%
+  summarise(month_avg = mean(Value, na.rm = TRUE)) %>%
+  ungroup()
+
+fraser <- filter(bc_monthly, PEARSEDA == "FRASER-LOWER MAINLAND")
 
 ```
 
-Create a monthly data frame and suhset to one parameter (arsenic):
+Create a monthly data frame and subset to one parameter (arsenic):
 
 ```{r}
 fraser_hope_arsenic <- filter(fraser, 
                               SITE_NO == "BC08MF0001",
-                              PARAM_SHORT_NAME == "ARSENIC TOTAL") %>% 
-  ungroup() %>% 
-  clean_wqdata(sds = 8, delete_outliers = FALSE, by = "PARAM_SHORT_NAME")
+                              PARAM_SHORT_NAME == "ARSENIC TOTAL")
 
-## Only keep data from 2003 on, Aggregate by month, encode a numeric 'Time' 
-# variable from Date
-fraser_hope_arsenic <- fraser_hope_arsenic %>%
-  mutate(month = month(Date, label = FALSE),
-         year = year(Date), 
-         censored = make_censor(ResultLetter)) %>%
-  filter(year >= 2003) %>%
-  group_by(PARAM_SHORT_NAME, month, year, censored, ResultLetter) %>%
-  summarise(month_avg = mean(Value, na.rm = TRUE)) %>%
+fraser_hope_arsenic <- tidyr::complete(fraser_hope_arsenic, year, month, 
+                fill = list(PARAM_SHORT_NAME = fraser_hope_arsenic$PARAM_SHORT_NAME[1], 
+                            PEARSEDA = fraser_hope_arsenic$PEARSEDA[1], 
+                            SITE_NO = fraser_hope_arsenic$SITE_NO[1])) %>% 
   mutate(Date = as.Date(paste(year, month, "15", sep = "-"))) %>% 
-  ungroup()
-
-fraser_hope_arsenic <- fraser_hope_arsenic %>% 
-  right_join(
-  data.frame(Date = seq(min(fraser_hope_arsenic$Date),
-                                  max(fraser_hope_arsenic$Date),
-                                  by = "month")), 
-  by = "Date"
-  ) %>% 
-  mutate(month = month(Date, label = FALSE),
-         year = year(Date), 
-         censored = make_censor(ResultLetter)) %>% 
   arrange(Date)
 
 ggplot(fraser_hope_arsenic, aes(x = Date, y = month_avg)) + 
