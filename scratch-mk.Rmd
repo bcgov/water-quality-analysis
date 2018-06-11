@@ -67,9 +67,10 @@ fraser_hope_arsenic <- fraser_hope_arsenic %>%
          year = year(Date), 
          censored = make_censor(ResultLetter)) %>%
   filter(year >= 2003) %>%
-  group_by(PARAM_SHORT_NAME, month, year, censored) %>%
+  group_by(PARAM_SHORT_NAME, month, year, censored, ResultLetter) %>%
   summarise(month_avg = mean(Value, na.rm = TRUE)) %>%
-  mutate(Date = as.Date(paste(year, month, "15", sep = "-")))
+  mutate(Date = as.Date(paste(year, month, "15", sep = "-"))) %>% 
+  ungroup()
 
 fraser_hope_arsenic <- fraser_hope_arsenic %>% 
   right_join(
@@ -78,6 +79,9 @@ fraser_hope_arsenic <- fraser_hope_arsenic %>%
                                   by = "month")), 
   by = "Date"
   ) %>% 
+  mutate(month = month(Date, label = FALSE),
+         year = year(Date), 
+         censored = make_censor(ResultLetter)) %>% 
   arrange(Date)
 
 ggplot(fraser_hope_arsenic, aes(x = Date, y = month_avg)) + 
