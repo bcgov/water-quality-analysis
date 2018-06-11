@@ -1,0 +1,155 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r setup, include=FALSE}
+library(canwqdata)
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+library(wqbc)
+library(readr)
+library(here)
+library(feather)
+library(purrr)
+source(here::here("R/functions.R"))
+dir.create(here::here("out"))
+```
+
+```{r EC-data}
+# load parameters:
+bc_data <- read_feather(here::here("data/bcdata.feather"))
+params <- read_csv(here::here("data/parameters.csv"))
+
+bc_tidy <- tidy_ec_data(bc_data, cols = "PEARSEDA") %>% 
+  add_shortnames() %>% 
+  filter(PARAM_SHORT_NAME %in% params$Variable_short_name, 
+         year(DateTime) >= 2003) %>% 
+  group_by(SITE_NO, PARAM_SHORT_NAME, DateTime, Units, DetectionLimit, 
+           ResultLetter, PEARSEDA) %>% 
+  summarise(Value = mean(Value, na.rm = TRUE), 
+            n = n()) %>% 
+  ungroup() %>% 
+  mutate(year = year(DateTime), 
+         month = month(DateTime), 
+         censored = make_censor(ResultLetter))
+
+bc_site_var_summary <- bc_tidy %>% group_by(SITE_NO, PARAM_SHORT_NAME) %>% 
+  summarize(min_year = min(year, na.rm = TRUE), 
+            max_year = max(year, na.rm = TRUE), 
+            nyears = max_year - min_year,
+            n_obs = n(),
+            n_cens = sum(censored != "none")) %>% 
+  filter(max_year >= 2013, nyears >= 10) %>% 
+  ungroup()
+
+bc_tidy <- semi_join(bc_tidy, bc_site_var_summary, 
+                     by = c("SITE_NO", "PARAM_SHORT_NAME"))
+
+fraser <- filter(bc_tidy, PEARSEDA == "FRASER-LOWER MAINLAND")
+
+```
+
+Create a monthly data frame and suhset to one parameter (arsenic):
+
+```{r}
+fraser_hope_arsenic <- filter(fraser, 
+                              SITE_NO == "BC08MF0001",
+                              PARAM_SHORT_NAME == "ARSENIC TOTAL") %>% 
+  ungroup() %>% 
+  clean_wqdata(sds = 8, delete_outliers = FALSE, by = "PARAM_SHORT_NAME")
+
+## Only keep data from 2003 on, Aggregate by month, encode a numeric 'Time' 
+# variable from Date
+fraser_hope_arsenic <- fraser_hope_arsenic %>%
+  mutate(month = month(Date, label = FALSE),
+         year = year(Date), 
+         censored = make_censor(ResultLetter)) %>%
+  filter(year >= 2003) %>%
+  group_by(PARAM_SHORT_NAME, month, year, censored) %>%
+  summarise(month_avg = mean(Value, na.rm = TRUE)) %>%
+  mutate(Date = as.Date(paste(year, month, "15", sep = "-")))
+
+fraser_hope_arsenic <- fraser_hope_arsenic %>% 
+  right_join(
+  data.frame(Date = seq(min(fraser_hope_arsenic$Date),
+                                  max(fraser_hope_arsenic$Date),
+                                  by = "month")), 
+  by = "Date"
+  ) %>% 
+  arrange(Date)
+
+ggplot(fraser_hope_arsenic, aes(x = Date, y = month_avg)) + 
+  geom_point(aes(shape = censored)) + 
+  geom_line() +
+  geom_smooth(method = "lm")
+```
+
+
+
+Testing out USGS seaken method:
+```{r}
+library(smwrStats)
+library(smwrGraphs)
+
+fraser_hope_arsenic_sk <- seaken(fraser_hope_arsenic$month_avg)
+fraser_hope_arsenic_sk
+seriesPlot(fraser_hope_arsenic_sk)
+
+# non-seasonal - to get an intercept estimate. A bit of a hack, but don't know
+# a better way
+fraser_hope_arsenic_k <- kensen.test(fraser_hope_arsenic$month_avg, t = as.numeric(fraser_hope_arsenic$Date)
+)
+
+slope <- fraser_hope_arsenic_sk$estimate["slope"] / (365 / 12)
+
+int <- fraser_hope_arsenic_k$coef[1] - 
+  (slope * min(as.numeric(fraser_hope_arsenic$Date)))
+
+ggplot(fraser_hope_arsenic, aes(x = Date, y = month_avg)) + 
+  geom_point() + 
+  geom_abline(slope = slope, intercept = int)
+
+```
+
+
+EnvStats:
+
+```{r}
+library(EnvStats)
+
+ks_fraser <- kendallSeasonalTrendTest(month_avg ~ month + year, 
+                                      data = fraser_hope_arsenic)
+
+ks_fraser
+# In order to account for serial autocorrelation there must be the same number
+# of observations in each year (12) - could either pad start and end years 
+# with NAs or truncate.
+```
+
+Plot the Seasonal Kendall results: need to rescale the slope and intercept 
+because they are based on time starting at time zero, and incrementing up by month.
+The date scale starts at `as.numeric(min(fraser_hope_arsenic$Date))` and increments
+by one per day
+
+```{r}
+slope <- ks_fraser$estimate["slope"] / (365 / 12)
+# The overall intercept is the median of all seasonal intercepts... doesn't seem
+# right
+int <- ks_fraser$estimate["intercept"] - 
+  (slope * min(as.numeric(fraser_hope_arsenic$Date)))
+  
+
+ggplot(fraser_hope_arsenic, aes(x = Date, y = month_avg)) + 
+  geom_point() + 
+  geom_abline(slope = slope, 
+              intercept = int)
+
+# plotting on a sequence scale (as the MK test is done on) produces the same 
+# figure, so I think I am transforming the slope and intercept correctly.
+plot(fraser_hope_arsenic$month_avg ~ seq_len(nrow(fraser_hope_arsenic)))
+abline(ks_fraser$estimate["intercept"], ks_fraser$estimate["slope"])
+
+```
+
