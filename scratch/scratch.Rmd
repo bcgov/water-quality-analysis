@@ -21,15 +21,16 @@ dir.create(here::here("out"))
 ```
 
 
-```{r load, eval=FALSE}
+```{r load, eval=TRUE}
 bc_stations <- wq_sites() %>% 
   filter(PROV_TERR == "BC")
 
 bc_data <- wq_site_data(unique(bc_stations$SITE_NO)) %>% 
   left_join(select(bc_stations, SITE_NO, PEARSEDA), 
-            by = "SITE_NO")
+            by = "SITE_NO") %>% 
+  distinct()
 
-bc_data$VALUE_VALEUR[bc_data$VALUE_VALEUR < -999] <- NA
+bc_data$VALUE_VALEUR[bc_data$VALUE_VALEUR < -900] <- NA
 
 write_feather(bc_data, here::here("data/bcdata.feather"))
 ```
