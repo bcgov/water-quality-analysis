@@ -21,7 +21,7 @@ dir.create(here::here("out"))
 ```
 
 
-```{r load, eval=TRUE}
+```{r load, eval=FALSE}
 bc_stations <- wq_sites() %>% 
   filter(PROV_TERR == "BC")
 
@@ -41,13 +41,21 @@ write_feather(bc_data, here::here("data/bcdata.feather"))
 bc_data <- read_feather(here::here("data/bcdata.feather"))
 params <- read_csv(here::here("data/parameters.csv"))
 
+# TODO - check params with very high CV - especially TEMPERATURE WATER vs 
+# TEMPERATURE WATER (FIELD)
+
+# TODO - double check list of stations, there are several not in the MoE list 
+# of fed-prov stations but show up in the data.
+
 bc_tidy <- tidy_ec_data(bc_data, cols = "PEARSEDA") %>% 
   add_shortnames() %>% 
   filter(PARAM_SHORT_NAME %in% params$Variable_short_name, 
          year(DateTime) >= 2003) %>% 
   group_by(SITE_NO, PARAM_SHORT_NAME, DateTime, Units, DetectionLimit, 
            ResultLetter, PEARSEDA) %>% 
-  summarise(Value = mean(Value, na.rm = TRUE), 
+  summarise(sd = sd(Value, na.rm = TRUE), 
+            Value = mean(Value, na.rm = TRUE), 
+            cv = (sd / Value) * 100,
             n = n()) %>% 
   ungroup() %>% 
   mutate(year = year(DateTime), 
@@ -63,71 +71,64 @@ bc_site_var_summary <- bc_tidy %>% group_by(SITE_NO, PARAM_SHORT_NAME) %>%
   filter(max_year >= 2013, nyears >= 10) %>% 
   ungroup()
 
-bc_tidy <- semi_join(bc_tidy, bc_site_var_summary, 
+bc_tidy <- inner_join(bc_tidy, bc_site_var_summary, 
                      by = c("SITE_NO", "PARAM_SHORT_NAME"))
-
-bc_nested <- tidyr::nest(bc_tidy, -PEARSEDA, -SITE_NO, -PARAM_SHORT_NAME)
-
-fraser <- filter(bc_tidy, PEARSEDA == "FRASER-LOWER MAINLAND")
-
 
 ```
 
+Make some plots of all parameters at each station, save to pdf
 ```{r}
-plot_station_vars(fraser, "BC08MF0001")
-sites <- unique(bc_tidy$SITE_NO)
-var_plots <- map(sites, ~ plot_station_vars(bc_tidy, .x)) %>% 
-  set_names(sites)
+plot_station_vars(fraser[fraser$SITE_NO == "BC08MF0001", ], "BC08MF0001")
 
+sites <- unique(bc_tidy$SITE_NO)
+var_plots <- map(sites, ~ plot_station_vars(filter(bc_tidy, SITE_NO == .x), .x)) %>% 
+  set_names(sites)
 
 iwalk(var_plots, ~ ggsave(file.path(here::here("out"), paste0(.y, ".pdf")), 
                           .x, width = 10.5, height = 8, units = "in"))
 ```
 
-
+Make nested data frames of tidy data and cleaned data - one row per parameter/site,
+then a plot for each
 ```{r}
-# foo <- standardize_wqdata(fraser_tidy)
 
-# Try a trend test with Fraser River at Hope
-fraser_hope_arsenic <- filter(fraser, 
-                              SITE_NO == "BC08MF0001",
-                              PARAM_SHORT_NAME == "ARSENIC TOTAL") %>% 
-  ungroup() %>% 
-  clean_wqdata(sds = 5, delete_outliers = TRUE)
+bc_nested <- tidyr::nest(bc_tidy, -PEARSEDA, -SITE_NO, -PARAM_SHORT_NAME, 
+                         -min_year, -max_year, -nyears, -n_obs, -n_cens)
 
-## Only keep data from 2003 on, Aggregate by month, encode a numeric 'Time' 
-# variable from Date
-# fraser_hope_arsenic <- fraser_hope_arsenic %>% 
-#   mutate(month = month(DateTime, label = FALSE), 
-#          year = year(DateTime)) %>% 
-#   filter(year >= 2003) %>% 
-#   group_by(PARAM_SHORT_NAME, month, year, censored) %>% 
-#   summarise(month_avg = mean(avg_val, na.rm = TRUE)) %>% 
-#   mutate(Date = as.Date(paste(year, month, "15", sep = "-")))
+bc_nested <- bc_nested %>% mutate(
+  clean_data = map(data, ~ {
+    clean_wqdata(.x) %>% 
+      mutate(censored = make_censor(ResultLetter), 
+             month = month(Date, label = FALSE), 
+             year = year(Date), 
+             Time = as.numeric(Date) / 1000) %>% 
+      arrange(Date)
+  })
+)
 
+# TODO - make a complete monthly df to store in another column. See scratch-mk.Rmd
 
-# Make it into a complete time series:
-# month_df <- data.frame(Date = seq(min(fraser_hope_arsenic$Date), 
-#                                   max(fraser_hope_arsenic$Date), 
-#                                   by = "month"))
-
-fraser_hope_arsenic <- fraser_hope_arsenic %>% #right_join(fraser_hope_arsenic, month_df) %>% 
-  ungroup() %>% 
-  mutate(censored = make_censor(ResultLetter), 
-         month = month(Date, label = FALSE), 
-         year = year(Date), 
-         Time = as.numeric(Date) / 1000) %>% 
-  arrange(Date)
-
-ggplot(fraser_hope_arsenic, aes(x = Date, y = Value)) + 
-  geom_point(aes(shape = censored, colour = Outlier)) + 
-  geom_line() +
-  geom_smooth(method = "lm")
+bc_nested <- bc_nested %>% 
+  mutate(lm_plot = pmap(
+    list(SITE_NO, PARAM_SHORT_NAME, clean_data), 
+    function(x, y, z) {
+      ggplot(data = z, mapping = aes(x = Date, y = Value)) + 
+        geom_point(aes(shape = censored, colour = Outlier)) + 
+        geom_line() +
+        geom_smooth(method = "lm") + 
+        ggtitle(paste(x, y, sep = ": "))
+    }))
 ```
 
 Fit a gam with a cyclic cubic spline smooth on month, which guarantees that the
 end of December and beginning of January match up (cyclic), and a smooth trend:
 ```{r}
+
+fraser_hope_arsenic <- filter(bc_nested, SITE_NO == "BC08MF0001", 
+                              PARAM_SHORT_NAME == "ARSENIC TOTAL") %>% 
+  pull(clean_data) %>% 
+  `[[`(1)
+
 fraser_arsenic_gam <- mgcv::gam(Value ~ s(month, bs = "cc", k = 12) + 
                                    s(Time, bs = "cr", k = 20), 
                                  # correlation = corCAR1(form = ~ 1 | year),
