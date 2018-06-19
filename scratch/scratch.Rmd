@@ -98,21 +98,22 @@ bc_nested <- bc_nested %>%
   mutate(
     full_monthly = map(clean_data, ~ {
       group_by(.x, year, month) %>% 
-      summarise(month_avg = mean(Value, na.rm = TRUE), 
-                n_censored = sum(censored != "none", na.rm = TRUE)) %>% 
-      complete(year, month) %>% 
-      mutate(Date = as.Date(paste(year, month, "15", sep = "-"))) %>% 
-      arrange(Date)
-  }), 
-  lm_plot = pmap(
-    list(SITE_NO, PARAM_SHORT_NAME, clean_data), 
-    function(x, y, z) {
-      ggplot(data = z, mapping = aes(x = Date, y = Value)) + 
-        geom_point(aes(shape = censored, colour = Outlier)) + 
-        geom_line() +
-        geom_smooth(method = "lm") + 
-        ggtitle(paste(x, y, sep = ": "))
-    }))
+        summarise(month_avg = mean(Value, na.rm = TRUE), 
+                  n_censored = sum(censored != "none", na.rm = TRUE)) %>% 
+        ungroup() %>% 
+        complete(year, month) %>% 
+        mutate(Date = as.Date(paste(year, month, "15", sep = "-"))) %>% 
+        arrange(Date)
+    }), 
+    lm_plot = pmap(
+      list(SITE_NO, PARAM_SHORT_NAME, clean_data), 
+      function(x, y, z) {
+        ggplot(data = z, mapping = aes(x = Date, y = Value)) + 
+          geom_point(aes(shape = censored, colour = Outlier)) + 
+          geom_line() +
+          geom_smooth(method = "lm") + 
+          ggtitle(paste(x, y, sep = ": "))
+      }))
 
 saveRDS(bc_nested, here("tmp/bc_nested.rds"))
 ```
