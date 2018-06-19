@@ -50,10 +50,11 @@ seriesPlot(fraser_hope_arsenic_sk)
 
 # non-seasonal - to get an intercept estimate. A bit of a hack, but don't know
 # a better way
-fraser_hope_arsenic_k <- kensen.test(fraser_hope_arsenic$month_avg, t = as.numeric(fraser_hope_arsenic$Date)
+fraser_hope_arsenic_k <- kensen.test(fraser_hope_arsenic$month_avg, 
+                                     t = as.numeric(fraser_hope_arsenic$Date)
 )
 
-slope <- fraser_hope_arsenic_sk$estimate["slope"] / (365 / 12)
+slope <- fraser_hope_arsenic_sk$estimate["slope"] / 365
 
 int <- fraser_hope_arsenic_k$coef[1] - 
   (slope * min(as.numeric(fraser_hope_arsenic$Date)))
