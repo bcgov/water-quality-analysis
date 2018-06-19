@@ -136,7 +136,7 @@ end of December and beginning of January match up (cyclic), and a smooth trend:
 fraser_hope_arsenic <- filter(bc_nested, SITE_NO == "BC08MF0001", 
                               PARAM_SHORT_NAME == "ARSENIC TOTAL") %>% 
   pull(clean_data) %>% 
-  `[[`(1)
+  pluck(1)
 
 fraser_arsenic_gam <- mgcv::gam(Value ~ s(month, bs = "cc", k = 12) + 
                                    s(Time, bs = "cr", k = 20), 

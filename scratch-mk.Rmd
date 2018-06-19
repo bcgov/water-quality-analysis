@@ -29,7 +29,7 @@ fraser_hope_arsenic <- filter(bc_nested,
                               SITE_NO == "BC08MF0001",
                               PARAM_SHORT_NAME == "ARSENIC TOTAL") %>% 
   pull(full_monthly) %>% 
-  `[[`(1)
+  pluck(1)
 
 ggplot(fraser_hope_arsenic, aes(x = Date, y = month_avg)) + 
   geom_point() + 
