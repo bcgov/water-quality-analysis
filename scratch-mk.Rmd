@@ -18,64 +18,21 @@ dir.create(here::here("out"))
 ```
 
 ```{r EC-data}
-# load parameters:
-bc_data <- read_feather(here::here("data/bcdata.feather"))
-params <- read_csv(here::here("data/parameters.csv"))
-
-bc_tidy <- tidy_ec_data(bc_data, cols = "PEARSEDA") %>% 
-  add_shortnames() %>% 
-  filter(PARAM_SHORT_NAME %in% params$Variable_short_name, 
-         year(DateTime) >= 2003) %>% 
-  group_by(SITE_NO, PARAM_SHORT_NAME, DateTime, Units, DetectionLimit, 
-           ResultLetter, PEARSEDA) %>% 
-  summarise(Value = mean(Value, na.rm = TRUE), 
-            n = n()) %>% 
-  ungroup() %>% 
-  mutate(year = year(DateTime), 
-         month = month(DateTime), 
-         censored = make_censor(ResultLetter))
-
-bc_site_var_summary <- bc_tidy %>% group_by(SITE_NO, PARAM_SHORT_NAME) %>% 
-  summarize(min_year = min(year, na.rm = TRUE), 
-            max_year = max(year, na.rm = TRUE), 
-            nyears = max_year - min_year,
-            n_obs = n(),
-            n_cens = sum(censored != "none")) %>% 
-  filter(max_year >= 2013, nyears >= 10) %>% 
-  ungroup()
-
-bc_tidy <- semi_join(bc_tidy, bc_site_var_summary, 
-                     by = c("SITE_NO", "PARAM_SHORT_NAME"))
-
-bc_monthly <- bc_tidy %>% 
-  clean_wqdata(by = c("SITE_NO", "PARAM_SHORT_NAME", "PEARSEDA")) %>% 
-  mutate(month = month(Date, label = FALSE),
-         year = year(Date), 
-         censored = make_censor(ResultLetter)) %>% 
-  group_by(PEARSEDA, SITE_NO, PARAM_SHORT_NAME, month, year, censored) %>%
-  summarise(month_avg = mean(Value, na.rm = TRUE)) %>%
-  ungroup()
-
-fraser <- filter(bc_monthly, PEARSEDA == "FRASER-LOWER MAINLAND")
+bc_nested <- readRDS(here("tmp/bc_nested.rds"))
 
 ```
 
 Create a monthly data frame and subset to one parameter (arsenic):
 
 ```{r}
-fraser_hope_arsenic <- filter(fraser, 
+fraser_hope_arsenic <- filter(bc_nested, 
                               SITE_NO == "BC08MF0001",
-                              PARAM_SHORT_NAME == "ARSENIC TOTAL")
-
-fraser_hope_arsenic <- tidyr::complete(fraser_hope_arsenic, year, month, 
-                fill = list(PARAM_SHORT_NAME = fraser_hope_arsenic$PARAM_SHORT_NAME[1], 
-                            PEARSEDA = fraser_hope_arsenic$PEARSEDA[1], 
-                            SITE_NO = fraser_hope_arsenic$SITE_NO[1])) %>% 
-  mutate(Date = as.Date(paste(year, month, "15", sep = "-"))) %>% 
-  arrange(Date)
+                              PARAM_SHORT_NAME == "ARSENIC TOTAL") %>% 
+  pull(full_monthly) %>% 
+  `[[`(1)
 
 ggplot(fraser_hope_arsenic, aes(x = Date, y = month_avg)) + 
-  geom_point(aes(shape = censored)) + 
+  geom_point() + 
   geom_line() +
   geom_smooth(method = "lm")
 ```

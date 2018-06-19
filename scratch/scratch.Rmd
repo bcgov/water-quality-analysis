@@ -6,6 +6,7 @@ output: html_notebook
 ```{r setup, include=FALSE}
 library(canwqdata)
 library(dplyr)
+library(tidyr)
 library(ggplot2)
 library(lubridate)
 library(wqbc)
@@ -23,7 +24,7 @@ dir.create(here::here("out"))
 
 ```{r load, eval=FALSE}
 bc_stations <- wq_sites() %>% 
-  filter(PROV_TERR == "BC")
+  filter(SITE_NO %in% wqbc::ems_ec_stations$envirodat_no)
 
 bc_data <- wq_site_data(unique(bc_stations$SITE_NO)) %>% 
   left_join(select(bc_stations, SITE_NO, PEARSEDA), 
@@ -43,9 +44,6 @@ params <- read_csv(here::here("data/parameters.csv"))
 
 # TODO - check params with very high CV - especially TEMPERATURE WATER vs 
 # TEMPERATURE WATER (FIELD)
-
-# TODO - double check list of stations, there are several not in the MoE list 
-# of fed-prov stations but show up in the data.
 
 bc_tidy <- tidy_ec_data(bc_data, cols = "PEARSEDA") %>% 
   add_shortnames() %>% 
@@ -76,18 +74,6 @@ bc_tidy <- inner_join(bc_tidy, bc_site_var_summary,
 
 ```
 
-Make some plots of all parameters at each station, save to pdf
-```{r}
-plot_station_vars(fraser[fraser$SITE_NO == "BC08MF0001", ], "BC08MF0001")
-
-sites <- unique(bc_tidy$SITE_NO)
-var_plots <- map(sites, ~ plot_station_vars(filter(bc_tidy, SITE_NO == .x), .x)) %>% 
-  set_names(sites)
-
-iwalk(var_plots, ~ ggsave(file.path(here::here("out"), paste0(.y, ".pdf")), 
-                          .x, width = 10.5, height = 8, units = "in"))
-```
-
 Make nested data frames of tidy data and cleaned data - one row per parameter/site,
 then a plot for each
 ```{r}
@@ -109,7 +95,16 @@ bc_nested <- bc_nested %>% mutate(
 # TODO - make a complete monthly df to store in another column. See scratch-mk.Rmd
 
 bc_nested <- bc_nested %>% 
-  mutate(lm_plot = pmap(
+  mutate(
+    full_monthly = map(clean_data, ~ {
+      group_by(.x, year, month) %>% 
+      summarise(month_avg = mean(Value, na.rm = TRUE), 
+                n_censored = sum(censored != "none", na.rm = TRUE)) %>% 
+      complete(year, month) %>% 
+      mutate(Date = as.Date(paste(year, month, "15", sep = "-"))) %>% 
+      arrange(Date)
+  }), 
+  lm_plot = pmap(
     list(SITE_NO, PARAM_SHORT_NAME, clean_data), 
     function(x, y, z) {
       ggplot(data = z, mapping = aes(x = Date, y = Value)) + 
@@ -118,6 +113,20 @@ bc_nested <- bc_nested %>%
         geom_smooth(method = "lm") + 
         ggtitle(paste(x, y, sep = ": "))
     }))
+
+saveRDS(bc_nested, here("tmp/bc_nested.rds"))
+```
+
+Make some plots of all parameters at each station, save to pdf
+```{r}
+#plot_station_vars(fraser[fraser$SITE_NO == "BC08MF0001", ], "BC08MF0001")
+
+sites <- unique(bc_tidy$SITE_NO)
+var_plots <- map(sites, ~ plot_station_vars(filter(bc_tidy, SITE_NO == .x), .x)) %>% 
+  set_names(sites)
+
+iwalk(var_plots, ~ ggsave(file.path(here::here("out"), paste0(.y, ".pdf")), 
+                          .x, width = 10.5, height = 8, units = "in"))
 ```
 
 Fit a gam with a cyclic cubic spline smooth on month, which guarantees that the
