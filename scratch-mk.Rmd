@@ -46,7 +46,7 @@ library(smwrGraphs)
 
 fraser_hope_arsenic_sk <- seaken(fraser_hope_arsenic$month_avg)
 fraser_hope_arsenic_sk
-seriesPlot(fraser_hope_arsenic_sk)
+# seriesPlot(fraser_hope_arsenic_sk)
 
 # non-seasonal - to get an intercept estimate. A bit of a hack, but don't know
 # a better way
@@ -81,15 +81,20 @@ ks_fraser
 ```
 
 Plot the Seasonal Kendall results: need to rescale the slope and intercept 
-because they are based on time starting at time zero, and incrementing up by month.
-The date scale starts at `as.numeric(min(fraser_hope_arsenic$Date))` and increments
-by one per day
+because they are based on time starting at time zero, and in units/year.
+The date scale starts at `as.numeric(min(fraser_hope_arsenic$Date))` and increments by one per day
 
 ```{r}
-slope <- ks_fraser$estimate["slope"] / (365 / 12)
+slope <- ks_fraser$estimate["slope"] / 365
 # The overall intercept is the median of all seasonal intercepts... doesn't seem
 # right
 int <- ks_fraser$estimate["intercept"] - 
+  (slope * min(as.numeric(fraser_hope_arsenic$Date)))
+
+k_fraser <- kendallTrendTest(fraser_hope_arsenic$month_avg, 
+                             as.numeric(fraser_hope_arsenic$Date))
+
+int <- k_fraser$estimate["intercept"] - 
   (slope * min(as.numeric(fraser_hope_arsenic$Date)))
   
 
