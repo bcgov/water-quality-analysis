@@ -41,11 +41,17 @@ plot_smk <- function(data, smk, yvar, datevar) {
   int <- ken$estimate["intercept"] -
     (slope * min(as.numeric(data[[datevar]])))
   
+  p_val <- smk$p.value[2]
+  sig <- p_val <= 0.05
+  
   # int <- smk$estimate["intercept"] - 
   #   (slope * min(as.numeric(data[[datevar]])))
   
   ggplot(data, aes(x = .data$Date, y = !!sym(yvar))) + 
     geom_point() + 
-    geom_abline(slope = slope, intercept = int)
+    geom_abline(slope = slope, intercept = int, colour = if (sig) "red" else "black") + 
+    labs(caption = paste0("Slope: ",  
+                          if (sig) paste0(slope * 365, " units per year") else "NS", 
+                          "; P-value: ", p_val))
 }
 
