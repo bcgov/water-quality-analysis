@@ -129,6 +129,16 @@ bc_nested <- mutate(
            
          }))
 
+pmap(list(p = bc_nested$smk_plot, s = bc_nested$SITE_NO, 
+          v = bc_nested$PARAM_SHORT_NAME), 
+     function(p, s, v) {
+       safely(ggsave, 
+              otherwise = cat(paste0(s, "-", v), 
+                              file = "log.txt", append = TRUE)
+              )(filename = paste0(s, "-", v, ".png"), 
+                      plot = p)
+     })
+
 ```
 
 ```{r}
