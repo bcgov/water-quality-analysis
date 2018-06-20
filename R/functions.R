@@ -4,7 +4,7 @@ plot_station_vars <- function(data, title, x = "DateTime", y = "Value",
   x <- rlang::sym(x)
   y <- rlang::sym(y)
   var <- rlang::sym(var)
-
+  
   if (!which == "all") {
     data <- filter(data, !!var %in% which)
   }
@@ -27,4 +27,25 @@ make_censor <- function(x) {
   )
 }
 
+plot_smk <- function(data, smk, yvar, datevar) {
+  if (!inherits(smk, "htest")) 
+    stop("smk must be the output of EnvStats::kendallSeasonalTrendTest", 
+         call. = FALSE)
+  
+  
+  slope <- smk$estimate["slope"] / 365
+  
+  ## non-seasonal - to get an intercept estimate. 
+  ## A bit of a hack, but don't know a better way
+  ken <- kendallTrendTest(data[[yvar]], as.numeric(data[[datevar]]))
+  int <- ken$estimate["intercept"] -
+    (slope * min(as.numeric(data[[datevar]])))
+  
+  # int <- smk$estimate["intercept"] - 
+  #   (slope * min(as.numeric(data[[datevar]])))
+  
+  ggplot(data, aes(x = .data$Date, y = !!sym(yvar))) + 
+    geom_point() + 
+    geom_abline(slope = slope, intercept = int)
+}
 

@@ -110,3 +110,45 @@ abline(ks_fraser$estimate["intercept"], ks_fraser$estimate["slope"])
 
 ```
 
+```{r}
+
+bc_nested <- mutate(
+  bc_nested, 
+  seaken = map(full_monthly, ~ {
+    kendallSeasonalTrendTest(.x$month_avg, season = .x$month, 
+                             year = .x$year)
+  }), 
+  sig = map(seaken, list("p.value", 2)), 
+  slope = map(seaken, list("estimate", "slope")), 
+  smk_plot = pmap(
+    list(d = full_monthly, m = seaken, s = SITE_NO, 
+         v = PARAM_SHORT_NAME), function(d, m, s, v) {
+           plot_smk(d, m, "month_avg", "Date") + 
+             labs(title = paste(s, v, sep = ": "), 
+                  x = "Date", y = "Value")
+           
+         }))
+
+```
+
+```{r}
+fraser_hope_arsenic_sk <- seaken(fraser_hope_arsenic$month_avg)
+fraser_hope_arsenic_sk
+# seriesPlot(fraser_hope_arsenic_sk)
+
+# non-seasonal - to get an intercept estimate. A bit of a hack, but don't know
+# a better way
+fraser_hope_arsenic_k2 <- kensen.test(fraser_hope_arsenic$month_avg, 
+                                     t = as.numeric(fraser_hope_arsenic$Date)
+)
+
+slope <- fraser_hope_arsenic_sk$estimate["slope"] / 365
+
+int <- fraser_hope_arsenic_k$coef[1] - 
+  (slope * min(as.numeric(fraser_hope_arsenic$Date)))
+
+ggplot(fraser_hope_arsenic, aes(x = Date, y = month_avg)) + 
+  geom_point() + 
+  geom_abline(slope = slope, intercept = int)
+```
+
