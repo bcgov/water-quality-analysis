@@ -128,18 +128,20 @@ bc_nested <- mutate(
                   x = "Date", y = "Value")
            
          }))
+```
 
-pmap(list(p = bc_nested$smk_plot, s = bc_nested$SITE_NO, 
+```{r eval=FALSE}
+pwalk(list(p = bc_nested$smk_plot, s = bc_nested$SITE_NO, 
           v = bc_nested$PARAM_SHORT_NAME), 
      function(p, s, v) {
        safely(ggsave, 
-              otherwise = cat(paste0(s, "-", v), 
+              otherwise = cat(paste0(s, "-", v, "\n"), 
                               file = "log.txt", append = TRUE)
               )(filename = paste0(s, "-", v, ".png"), 
                       plot = p)
      })
-
 ```
+
 
 ```{r}
 fraser_hope_arsenic_sk <- seaken(fraser_hope_arsenic$month_avg)
