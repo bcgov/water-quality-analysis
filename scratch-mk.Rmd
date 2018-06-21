@@ -6,6 +6,7 @@ output: html_notebook
 ```{r setup, include=FALSE}
 library(canwqdata)
 library(dplyr)
+library(tidyr)
 library(ggplot2)
 library(lubridate)
 library(wqbc)
@@ -114,20 +115,23 @@ abline(ks_fraser$estimate["intercept"], ks_fraser$estimate["slope"])
 
 bc_nested <- mutate(
   bc_nested, 
-  seaken = map(full_monthly, ~ {
-    kendallSeasonalTrendTest(.x$month_avg, season = .x$month, 
-                             year = .x$year)
+  sk = map(full_monthly, ~ {
+    seaken(.x$month_avg, 12)
   }), 
-  sig = map(seaken, list("p.value", 2)), 
-  slope = map(seaken, list("estimate", "slope")), 
+  p_val = map_dbl(sk, "p.value"), 
+  sig = p_val < 0.05,
+  slope = map_dbl(sk, list("estimate", "slope")), 
+  intercept = map_dbl(sk, list("estimate", "median.data")) - 
+                        (map_dbl(sk, list("estimate", "median.time")) * slope), 
   smk_plot = pmap(
-    list(d = full_monthly, m = seaken, s = SITE_NO, 
-         v = PARAM_SHORT_NAME), function(d, m, s, v) {
-           plot_smk(d, m, "month_avg", "Date") + 
-             labs(title = paste(s, v, sep = ": "), 
-                  x = "Date", y = "Value")
+   list(d = full_monthly, m = sk, s = SITE_NO, 
+        v = PARAM_SHORT_NAME), function(d, m, s, v) {
+          plot_smk(d, m, "month_avg", "Date") + 
+            labs(title = paste(s, v, sep = ": "), 
+                 x = "Date", y = "Value")
            
-         }))
+         })
+)
 ```
 
 ```{r eval=FALSE}
@@ -140,6 +144,52 @@ pwalk(list(p = bc_nested$smk_plot, s = bc_nested$SITE_NO,
               )(filename = paste0(s, "-", v, ".png"), 
                       plot = p)
      })
+```
+
+```{r}
+station_results <- bc_nested %>%
+  select(SITE_NO, PARAM_SHORT_NAME, sk, p_val, sig, slope, intercept) %>% 
+  nest(-SITE_NO, .key = "results")
+
+dummy <- station_results %>% 
+  filter(SITE_NO == "AK08DC0001") %>% 
+  unnest()
+
+bc_nested %>% filter(SITE_NO == "AK08DC0001") %>% 
+  select(SITE_NO, PARAM_SHORT_NAME, full_monthly) %>% 
+  unnest() %>% 
+  ggplot(aes(x = Date, y = month_avg)) + 
+  geom_point() + 
+  geom_abline(data = dummy, aes(slope = slope / 365, 
+                                intercept = intercept -
+    ((slope / 365) * min(as.numeric(as.Date("2004-01-15")))), 
+    colour = sig)) +
+  geom_text(data = dummy, aes())
+  facet_wrap(vars(PARAM_SHORT_NAME), scales = "free_y")
+  
+for (s in station_results$SITE_NO) {
+  dummy <- station_results %>% 
+  filter(SITE_NO == s) %>% 
+  unnest()
+
+bc_nested %>% filter(SITE_NO == s) %>% 
+  select(SITE_NO, PARAM_SHORT_NAME, full_monthly) %>% 
+  unnest() %>% 
+  ggplot(aes(x = .data$Date, y = .data$month_avg)) + 
+  geom_point() + 
+  geom_abline(data = dummy, aes(slope = .data$slope / 365, 
+                                intercept = .data$intercept -
+    ((.data$slope / 365) * min(as.numeric(as.Date("2004-01-15")))), 
+    colour = .data$sig)) +
+  # geom_text(data = dummy, aes())
+  facet_wrap(vars(PARAM_SHORT_NAME), scales = "free_y") + 
+  labs(x = "Date", y = "Value", colour = "Significance", 
+       title = s)
+  
+ggsave(file.path(here("out"), paste0("smk-", s, ".pdf")), 
+      width = 10, height = 8, units = "in")
+
+}
 ```
 
 
