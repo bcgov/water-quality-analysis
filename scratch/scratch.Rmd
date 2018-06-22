@@ -92,8 +92,6 @@ bc_nested <- bc_nested %>% mutate(
   })
 )
 
-# TODO - make a complete monthly df to store in another column. See scratch-mk.Rmd
-
 bc_nested <- bc_nested %>% 
   mutate(
     full_monthly = map(clean_data, ~ {
@@ -126,49 +124,156 @@ sites <- unique(bc_tidy$SITE_NO)
 var_plots <- map(sites, ~ plot_station_vars(filter(bc_tidy, SITE_NO == .x), .x)) %>% 
   set_names(sites)
 
-iwalk(var_plots, ~ ggsave(file.path(here::here("out"), paste0(.y, ".pdf")), 
-                          .x, width = 10.5, height = 8, units = "in"))
+# iwalk(var_plots, ~ ggsave(file.path(here::here("out"), paste0(.y, ".pdf")), 
+#                           .x, width = 10.5, height = 8, units = "in"))
 ```
 
 Fit a gam with a cyclic cubic spline smooth on month, which guarantees that the
 end of December and beginning of January match up (cyclic), and a smooth trend:
 ```{r}
 
-fraser_hope_arsenic <- filter(bc_nested, SITE_NO == "BC08MF0001", 
-                              PARAM_SHORT_NAME == "ARSENIC TOTAL") %>% 
+bc08fc0001_mag <- filter(bc_nested, SITE_NO == "BC08FC0001", 
+                              PARAM_SHORT_NAME == "MAGNESIUM") %>% 
   pull(clean_data) %>% 
   pluck(1)
 
-fraser_arsenic_gam <- mgcv::gam(Value ~ s(month, bs = "cc", k = 12) + 
+bc08fc0001_mag_gam <- mgcv::gamm(Value ~ s(month, bs = "cc", k = 12) + 
                                    s(Time, bs = "cr", k = 20), 
-                                 # correlation = corCAR1(form = ~ 1 | year),
-                                 data = fraser_hope_arsenic, 
-                                 family = Gamma,
+                                 correlation = corAR1(form = ~ 1 | year),
+                                 data = bc08fc0001_mag, 
+                                 # family = Gamma,
                                  method = "REML")
 
 # Check the residuals for evidence of autocorrelation:
-acf(resid(fraser_arsenic_gam, main = "ACF"))
-pacf(resid(fraser_arsenic_gam, main = "pACF"))
+acf(resid(bc08fc0001_mag_gam$gam, main = "ACF"))
+pacf(resid(bc08fc0001_mag_gam$gam, main = "pACF"))
 # These look fine (I think) so don't need to add a correlation structure
 
 ## Do some checks
-fraser_arsenic_gam
-summary(fraser_arsenic_gam)
-gam.check(fraser_arsenic_gam)
-draw(fraser_arsenic_gam)
+bc08fc0001_mag_gam
+summary(bc08fc0001_mag_gam$gam)
+gam.check(bc08fc0001_mag_gam$gam)
+draw(bc08fc0001_mag_gam$gam)
 # not great
 ```
 
-Those checks on the model fit aren't great - try logging the response variable
+Now let's try to plot the trend:
+
+```{r}
+
+# Generate a data frame to hold the predicted values
+pred_data <- tibble(Date = seq(min(bc08fc0001_mag$Date, na.rm = TRUE), 
+                               max(bc08fc0001_mag$Date, na.rm = TRUE), 
+                               length.out = 200), 
+                    Time = as.numeric(Date) / 1000, 
+                    month = month(Date))
+
+## predict trend contributions
+p  <- predict(bc08fc0001_mag_gam$gam, newdata = pred_data, type = "terms", 
+              se.fit = TRUE)
+
+
+## combine with the predictions data, including fitted and SEs
+pred_data <- mutate(pred_data, 
+                    pred = p$fit[,2] + coef(bc08fc0001_mag_gam$gam)["(Intercept)"],  
+                    se = p$se.fit[,2])
+
+# Plot - note need to exp() the predicted values because they were logged
+ggplot(pred_data, aes(x = Date, y = pred)) +
+  geom_point(data = bc08fc0001_mag, aes(y = Value)) + 
+  geom_ribbon(aes(ymin = pred - se, ymax = pred + se), fill = "grey") + 
+  geom_line()
+
+```
+
+Find the periods of likely significant change by computing the confidence intervals
+of the first derivative of the fitted values - where those confidence intervals
+don't overlap zero, the rate of change is different from zero, meaning the slope 
+is significantly increasing or decreasing. 
+
+From: https://www.fromthebottomoftheheap.net/2016/03/25/additive-modeling-global-temperature-series-revisited/
+
+```{r}
+
+tmpf <- tempfile()
+curl::curl_download("https://gist.githubusercontent.com/gavinsimpson/d23ae67e653d5bfff652/raw/25fd719c3ab699e48927e286934045622d33b3bf/simulate.gamm.R", tmpf)
+source(tmpf)
+
+set.seed(10)
+
+sims <- simulate(bc08fc0001_mag_gam, nsim = 10000, newdata = pred_data)
+
+ci <- apply(sims, 1L, quantile, probs = c(0.025, 0.975))
+
+pred_data <- mutate(pred_data,
+                  fitted = predict(bc08fc0001_mag_gam$gam, newdata = pred_data),
+                  lower_sim_ci  = ci[1, ],
+                  upper_sim_ci  = ci[2, ])
+
+
+ggplot(bc08fc0001_mag, aes(x = Time, y = Value)) + 
+  geom_point() + 
+  geom_ribbon(data = pred_data, aes(ymin = lower_sim_ci, ymax = upper_sim_ci, x = Time, y = fitted),
+                 alpha = 0.2, fill = "grey") +
+    geom_line(data = pred_data, aes(y = fitted, x = Time))
+
+
+
+tmpf <- tempfile()
+curl::curl_download("https://gist.githubusercontent.com/gavinsimpson/ca18c9c789ef5237dbc6/raw/295fc5cf7366c831ab166efaee42093a80622fa8/derivSimulCI.R", tmpf)
+source(tmpf)
+
+fd <- derivSimulCI(bc08fc0001_mag_gam, term = "Time", samples = 1000, n = 200)
+
+CI <- apply(fd[[1]]$simulations, 1, quantile, probs = c(0.025, 0.975))
+
+sigD <- signifD(fd[["Time"]]$deriv, fd[["Time"]]$deriv, CI[2, ], CI[1, ],
+                eval = 0)
+
+newd <- mutate(pred_data,
+                  derivative = fd[["Time"]]$deriv[, 1], # computed first derivative
+                  fdUpper = CI[2, ],                    # upper CI on first deriv
+                  fdLower = CI[1, ],                    # lower CI on first deriv
+                  increasing = sigD$incr,               # where is curve increasing?
+                  decreasing = sigD$decr)
+
+# The first derivatives of the fitted trend can be used to determine where 
+# values are increasing or decreasing. Using the standard error of the 
+# derivative or posterior simulation we can also say where the confidence 
+# interval on the derivative doesn’t include 0 — suggesting periods of 
+# statistically significant change in the value.
+
+ggplot(newd, aes(x = Time, y = derivative)) +
+    geom_ribbon(aes(ymax = fdUpper, ymin = fdLower), alpha = 0.3, fill = "grey") +
+    geom_line() +
+    geom_line(aes(y = increasing), size = 1.5) +
+    geom_line(aes(y = decreasing), size = 1.5) +
+    ylab(expression(italic(hat(f) * "'") * (Time))) +
+    xlab("Time")
+
+# Replot original fitted line of trend, but with the period(s) identified
+# by first derivative as periods of significant change
+
+ggplot(pred_data, aes(x = Date, y = pred)) +
+  geom_point(data = bc08fc0001_mag, aes(y = Value)) + 
+  geom_ribbon(aes(ymin = pred - se, ymax = pred + se), fill = "grey", alpha = 0.7) + 
+  geom_line() + 
+  geom_line(data = pred_data[!is.na(newd$increasing) | !is.na(newd$decreasing), ], 
+            size = 2, colour = "blue")
+
+
+```
+
+Try logging the response variable
 (could also try with a different family, probably Gamma)
 
 ```{r}
-fraser_hope_arsenic$log_avg <- log(fraser_hope_arsenic$Value)
+bc08fc0001_mag$log_avg <- log(bc08fc0001_mag$Value)
 
 fraser_arsenic_gam_log <- mgcv::gamm(log_avg ~ s(month, bs = "cc", k = 12) + 
                                    s(Time, k = 20),
                                    correlation = corCAR1(),
-                                 data = fraser_hope_arsenic, 
+                                 data = bc08fc0001_mag, 
                                  method = "REML")
 
 # Check the residuals for evidence of autocorrelation:
@@ -184,36 +289,6 @@ draw(fraser_arsenic_gam_log$gam)
 
 ```
 
-Now let's try to plot the trend:
-
-```{r}
-
-# Generate a data frame to hold the predicted values
-pred_data <- tibble(Date = seq(min(fraser_hope_arsenic$Date, na.rm = TRUE), 
-                               max(fraser_hope_arsenic$Date, na.rm = TRUE), 
-                               length.out = 200), 
-                    Time = as.numeric(Date) / 1000, 
-                    month = month(Date))
-
-## predict trend contributions
-p  <- predict(fraser_arsenic_gam_log$gam, newdata = pred_data, type = "terms", 
-              se.fit = TRUE)
-
-
-## combine with the predictions data, including fitted and SEs
-pred_data <- mutate(pred_data, 
-                    pred = p$fit[,2] + coef(fraser_arsenic_gam_log$gam)["(Intercept)"],  
-                    se = p$se.fit[,2])
-
-# Plot - note need to exp() the predicted values because they were logged
-ggplot(pred_data, aes(x = Date, y = exp(pred))) +
-  geom_point(data = fraser_hope_arsenic, aes(y = Value)) + 
-  geom_ribbon(aes(ymin = exp(pred - se), ymax = exp(pred + se)), fill = "grey") + 
-  geom_line()
-
-```
-
-
 Testing out with brms, which opens up more distributions and allows modelling 
 of censored data, as well as distributional modelling of input parameters:
 ```{r}
@@ -223,7 +298,7 @@ options(mc.cores = 4L)
 
 # foo <- brm(bf(Value ~ s(month, bs = "cc", k = 12) + 
 #          s(Time, k = 20)),
-#      data = fraser_hope_arsenic, 
+#      data = bc08fc0001_mag, 
 #      family = Gamma(link = "log")) # log link to ensure not negative
 # 
 # pairs(foo, off_diag_args = list(size = 0.1))
@@ -233,7 +308,7 @@ options(mc.cores = 4L)
 foo <- brm(bf(Value| cens(censored) ~ s(month, bs = "cc", k = 12) +
                 s(Time, k = 20), 
               family = gen_extreme_value(link = "log")),
-           data = fraser_hope_arsenic, 
+           data = bc08fc0001_mag, 
            # family = lognormal(), 
            control = list(adapt_delta = 0.99))
 
