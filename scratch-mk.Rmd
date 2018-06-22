@@ -214,3 +214,18 @@ ggplot(fraser_hope_arsenic, aes(x = Date, y = month_avg)) +
   geom_abline(slope = slope, intercept = int)
 ```
 
+Test usgs `restrend` Package
+```{r}
+# install.packages("restrend", repos = 'https://owi.usgs.gov/R')
+library(restrend)
+library(smwrQW)
+
+test_data <- filter(bc_nested, SITE_NO == "BC08FC0001", PARAM_SHORT_NAME == "ZINC TOTAL") %>% 
+  select(clean_data) %>% 
+  unnest()
+
+test_cens <- as.lcens(test_data$Value, test_data$DetectionLimit)
+
+
+```
+
