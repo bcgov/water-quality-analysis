@@ -132,27 +132,34 @@ Fit a gam with a cyclic cubic spline smooth on month, which guarantees that the
 end of December and beginning of January match up (cyclic), and a smooth trend:
 ```{r}
 
-bc08fc0001_mag <- filter(bc_nested, SITE_NO == "BC08FC0001", 
+bc08fc0001_mag <- filter(bc_nested, SITE_NO == "BC08KA0007", 
                               PARAM_SHORT_NAME == "MAGNESIUM") %>% 
   pull(clean_data) %>% 
   pluck(1)
 
 bc08fc0001_mag_gam <- mgcv::gamm(Value ~ s(month, bs = "cc", k = 12) + 
                                    s(Time, bs = "cr", k = 20), 
-                                 correlation = corAR1(form = ~ 1 | year),
+                                 # correlation = corCAR1(form = ~ 1),
                                  data = bc08fc0001_mag, 
                                  # family = Gamma,
                                  method = "REML")
 
 # Check the residuals for evidence of autocorrelation:
+par(mfrow = c(1,2))
 acf(resid(bc08fc0001_mag_gam$gam, main = "ACF"))
 pacf(resid(bc08fc0001_mag_gam$gam, main = "pACF"))
 # These look fine (I think) so don't need to add a correlation structure
 
 ## Do some checks
-bc08fc0001_mag_gam
+bc08fc0001_mag_gam$lme
+intervals(bc08fc0001_mag_gam$lme, type = "var-covar")
 summary(bc08fc0001_mag_gam$gam)
+summary(bc08fc0001_mag_gam$lme)
+
+par(mfrow = c(2,2))
 gam.check(bc08fc0001_mag_gam$gam)
+par(mfrow = c(1,1))
+
 draw(bc08fc0001_mag_gam$gam)
 # not great
 ```
@@ -195,9 +202,7 @@ From: https://www.fromthebottomoftheheap.net/2016/03/25/additive-modeling-global
 
 ```{r}
 
-tmpf <- tempfile()
-curl::curl_download("https://gist.githubusercontent.com/gavinsimpson/d23ae67e653d5bfff652/raw/25fd719c3ab699e48927e286934045622d33b3bf/simulate.gamm.R", tmpf)
-source(tmpf)
+devtools::source_gist("d23ae67e653d5bfff652", filename = "simulate.gamm.R")
 
 set.seed(10)
 
@@ -214,14 +219,11 @@ pred_data <- mutate(pred_data,
 ggplot(bc08fc0001_mag, aes(x = Time, y = Value)) + 
   geom_point() + 
   geom_ribbon(data = pred_data, aes(ymin = lower_sim_ci, ymax = upper_sim_ci, x = Time, y = fitted),
-                 alpha = 0.2, fill = "grey") +
+                 alpha = 0.8, fill = "grey") +
     geom_line(data = pred_data, aes(y = fitted, x = Time))
 
 
-
-tmpf <- tempfile()
-curl::curl_download("https://gist.githubusercontent.com/gavinsimpson/ca18c9c789ef5237dbc6/raw/295fc5cf7366c831ab166efaee42093a80622fa8/derivSimulCI.R", tmpf)
-source(tmpf)
+devtools::source_gist("ca18c9c789ef5237dbc6", filename = "derivSimulCI.R")
 
 fd <- derivSimulCI(bc08fc0001_mag_gam, term = "Time", samples = 1000, n = 200)
 
@@ -230,12 +232,15 @@ CI <- apply(fd[[1]]$simulations, 1, quantile, probs = c(0.025, 0.975))
 sigD <- signifD(fd[["Time"]]$deriv, fd[["Time"]]$deriv, CI[2, ], CI[1, ],
                 eval = 0)
 
-newd <- mutate(pred_data,
+pred_data <- mutate(pred_data,
                   derivative = fd[["Time"]]$deriv[, 1], # computed first derivative
                   fdUpper = CI[2, ],                    # upper CI on first deriv
                   fdLower = CI[1, ],                    # lower CI on first deriv
                   increasing = sigD$incr,               # where is curve increasing?
-                  decreasing = sigD$decr)
+                  decreasing = sigD$decr, 
+                  direction = ifelse(!is.na(increasing), "increasing", 
+                                     ifelse(!is.na(decreasing), "decreasing", 
+                                            NA)))
 
 # The first derivatives of the fitted trend can be used to determine where 
 # values are increasing or decreasing. Using the standard error of the 
@@ -243,7 +248,7 @@ newd <- mutate(pred_data,
 # interval on the derivative doesn’t include 0 — suggesting periods of 
 # statistically significant change in the value.
 
-ggplot(newd, aes(x = Time, y = derivative)) +
+ggplot(pred_data, aes(x = Time, y = derivative)) +
     geom_ribbon(aes(ymax = fdUpper, ymin = fdLower), alpha = 0.3, fill = "grey") +
     geom_line() +
     geom_line(aes(y = increasing), size = 1.5) +
@@ -258,8 +263,10 @@ ggplot(pred_data, aes(x = Date, y = pred)) +
   geom_point(data = bc08fc0001_mag, aes(y = Value)) + 
   geom_ribbon(aes(ymin = pred - se, ymax = pred + se), fill = "grey", alpha = 0.7) + 
   geom_line() + 
-  geom_line(data = pred_data[!is.na(newd$increasing) | !is.na(newd$decreasing), ], 
-            size = 2, colour = "blue")
+  geom_line(data = pred_data[!is.na(pred_data$direction), ], 
+            aes(colour = direction), 
+            size = 1, lineend = "round") + 
+  labs(y = "Value", colour = "Trend direction")
 
 
 ```
