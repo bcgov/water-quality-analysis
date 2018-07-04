@@ -99,7 +99,7 @@ bc_nested <- bc_nested %>%
         summarise(month_avg = mean(Value, na.rm = TRUE), 
                   n_censored = sum(censored != "none", na.rm = TRUE)) %>% 
         ungroup() %>% 
-        complete(year, month) %>% 
+        complete(full_seq(year, 1), full_seq(month, 1)) %>% 
         mutate(Date = as.Date(paste(year, month, "15", sep = "-"))) %>% 
         arrange(Date)
     }), 
