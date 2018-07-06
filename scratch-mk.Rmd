@@ -159,36 +159,43 @@ bc_nested %>% filter(SITE_NO == "AK08DC0001") %>%
   select(SITE_NO, PARAM_SHORT_NAME, full_monthly) %>% 
   unnest() %>% 
   ggplot(aes(x = Date, y = month_avg)) + 
-  geom_point() + 
+  geom_point(size = 0.5, aes(shape = as.logical(n_censored))) + 
   geom_abline(data = dummy, aes(slope = slope / 365, 
                                 intercept = intercept -
     ((slope / 365) * min(as.numeric(as.Date("2004-01-15")))), 
     colour = sig)) +
-  geom_text(data = dummy, aes())
-  facet_wrap(vars(PARAM_SHORT_NAME), scales = "free_y")
+  # geom_text(data = dummy, aes())
+  facet_wrap(vars(PARAM_SHORT_NAME), scales = "free_y", 
+             labeller = label_wrap_gen(width = 15)) + 
+  theme_minimal(base_size = 9) + 
+  theme(strip.text = element_text(size = 6))
   
 for (s in station_results$SITE_NO) {
   dummy <- station_results %>% 
-  filter(SITE_NO == s) %>% 
-  unnest()
-
-bc_nested %>% filter(SITE_NO == s) %>% 
-  select(SITE_NO, PARAM_SHORT_NAME, full_monthly) %>% 
-  unnest() %>% 
-  ggplot(aes(x = .data$Date, y = .data$month_avg)) + 
-  geom_point() + 
-  geom_abline(data = dummy, aes(slope = .data$slope / 365, 
-                                intercept = .data$intercept -
-    ((.data$slope / 365) * min(as.numeric(as.Date("2004-01-15")))), 
-    colour = .data$sig)) +
-  # geom_text(data = dummy, aes())
-  facet_wrap(vars(PARAM_SHORT_NAME), scales = "free_y") + 
-  labs(x = "Date", y = "Value", colour = "Significance", 
-       title = s)
+    filter(SITE_NO == s) %>% 
+    unnest()
   
-ggsave(file.path(here("out"), paste0("smk-", s, ".pdf")), 
-      width = 10, height = 8, units = "in")
-
+  bc_nested %>% filter(SITE_NO == s) %>% 
+    select(SITE_NO, PARAM_SHORT_NAME, full_monthly) %>% 
+    unnest() %>% 
+    ggplot(aes(x = Date, y = month_avg)) + 
+    geom_point(size = 0.5, aes(colour = as.logical(n_censored))) + 
+    geom_abline(data = dummy, 
+                aes(slope = slope / 365, 
+                    intercept = intercept -
+                      ((slope / 365) * min(as.numeric(as.Date("2004-01-15")))), 
+                    linetype = sig)) +
+    # geom_text(data = dummy, aes())
+    facet_wrap(vars(PARAM_SHORT_NAME), scales = "free_y", 
+               labeller = label_wrap_gen(width = 15)) + 
+    theme_minimal(base_size = 9) + 
+    theme(strip.text = element_text(size = 6)) + 
+    labs(x = "Date", y = "Value", linetype = "Significance", 
+         title = s, colour = "Censored")
+  
+  ggsave(file.path(here("out"), paste0("smk-", s, ".pdf")), 
+         width = 10, height = 8, units = "in")
+  
 }
 ```
 
@@ -200,8 +207,9 @@ library(restrend)
 library(smwrQW)
 
 test_data <- filter(bc_nested, SITE_NO == "BC08FC0001", PARAM_SHORT_NAME == "ZINC TOTAL") %>% 
-  select(clean_data) %>% 
-  unnest()
+  select(full_monthly) %>% 
+  unnest() %>% 
+  arrange(Date)
 
 test_cens <- as.lcens(test_data$Value, test_data$DetectionLimit)
 
