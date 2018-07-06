@@ -97,6 +97,9 @@ bc_nested <- bc_nested %>%
     full_monthly = map(clean_data, ~ {
       group_by(.x, year, month) %>% 
         summarise(month_avg = mean(Value, na.rm = TRUE), 
+                  n = n(),
+                  sd = sd(Value, na.rm = TRUE), 
+                  cv = (sd / month_avg) * 100,
                   n_censored = sum(censored != "none", na.rm = TRUE)) %>% 
         ungroup() %>% 
         complete(year = full_seq(year, 1), month = full_seq(month, 1)) %>% 
