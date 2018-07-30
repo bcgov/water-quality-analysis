@@ -9,11 +9,11 @@ plot_station_vars <- function(data, title, x = "DateTime", y = "Value",
     data <- filter(data, !!var %in% which)
   }
   
-  
   ggplot(data, aes(x = !!x, y = !!y)) + 
     facet_wrap(vars(!!var), scales = "free_y") + 
     geom_point(aes(colour = .data$censored),size = 0.2) + 
     geom_smooth(..., size = 0.2) + 
+    geom_step(aes(y = .data$DetectionLimit), colour = "green") + 
     labs(title = paste(data$PEARSEDA[1], title, sep = ": "), 
          colour = "Censored") + 
     theme(strip.text = element_text(size = rel(0.6)))
