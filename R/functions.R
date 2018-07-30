@@ -27,6 +27,16 @@ make_censor <- function(x) {
   )
 }
 
+avg_censored <- function(x, censor, censored_val = c("left", "right"), stat = mean, ...) {
+  if (length(x) != length(censor)) {
+    stop("x and censor must be the same length", call. = FALSE)
+  }
+  if (all(censor %in% censored_val)) {
+    return(NA_real_)
+  }
+  stat(x[!censor %in% censored_val], ...)
+}
+
 plot_smk <- function(data, smk, yvar, datevar) {
   if (!inherits(smk, "htest")) 
     stop("smk must be the output of smwrStats$seaken", 
