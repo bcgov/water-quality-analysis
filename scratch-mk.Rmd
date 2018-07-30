@@ -3,7 +3,7 @@ title: "R Notebook"
 output: html_notebook
 ---
 
-```{r setup, include=FALSE}
+```{r setup}
 library(canwqdata)
 library(dplyr)
 library(tidyr)
