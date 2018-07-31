@@ -121,7 +121,7 @@ bc_nested <- bc_nested %>%
       function(x, y, z) {
         ggplot(data = z, mapping = aes(x = Date, y = Value)) + 
           geom_point(aes(shape = censored, colour = Outlier)) + 
-          geom_line() +
+          geom_step(aes(y = DetectionLimit)) +
           geom_smooth(method = "lm") + 
           ggtitle(paste(x, y, sep = ": "))
       }))
