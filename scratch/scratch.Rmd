@@ -260,7 +260,7 @@ pred_data <- mutate(pred_data,
 # The first derivatives of the fitted trend can be used to determine where 
 # values are increasing or decreasing. Using the standard error of the 
 # derivative or posterior simulation we can also say where the confidence 
-# interval on the derivative doesn’t include 0 — suggesting periods of 
+# interval on the derivative doesn't include 0 - suggesting periods of 
 # statistically significant change in the value.
 
 ggplot(pred_data, aes(x = Time, y = derivative)) +
