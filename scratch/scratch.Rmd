@@ -105,7 +105,10 @@ month_complete <- function(x) {
               sd = sd(Value, na.rm = TRUE), 
               cv = (sd / month_avg) * 100,
               n_censored = sum(censored != "none", na.rm = TRUE),
+              censored = is.na(month_avg) & n_censored,
               detection_limit = unique(DetectionLimit),
+              month_avg = ifelse(!censored, month_avg, 
+                                 detection_limit),
               n_dl = n_distinct(DetectionLimit)) %>% 
     ungroup() %>% 
     complete(year = full_seq(year, 1), month = full_seq(month, 1)) %>% 
