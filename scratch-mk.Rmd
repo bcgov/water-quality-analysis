@@ -159,11 +159,12 @@ bc_nested %>% filter(SITE_NO == "AK08DC0001") %>%
   select(SITE_NO, PARAM_SHORT_NAME, full_monthly) %>% 
   unnest() %>% 
   ggplot(aes(x = Date, y = month_avg)) + 
-  geom_point(size = 0.5, aes(shape = as.logical(n_censored))) + 
+  # geom_step(aes(y = detection_limit)) + 
+  geom_point(size = 0.5, aes(colour = censored)) + 
   geom_abline(data = dummy, aes(slope = slope / 365, 
                                 intercept = intercept -
     ((slope / 365) * min(as.numeric(as.Date("2004-01-15")))), 
-    colour = sig)) +
+    linetype = sig)) +
   # geom_text(data = dummy, aes())
   facet_wrap(vars(PARAM_SHORT_NAME), scales = "free_y", 
              labeller = label_wrap_gen(width = 15)) + 
@@ -179,7 +180,8 @@ for (s in station_results$SITE_NO) {
     select(SITE_NO, PARAM_SHORT_NAME, full_monthly) %>% 
     unnest() %>% 
     ggplot(aes(x = Date, y = month_avg)) + 
-    geom_point(size = 0.5, aes(colour = as.logical(n_censored))) + 
+    # geom_step(aes(y = detection_limit)) + 
+    geom_point(size = 0.5, aes(colour = censored)) + 
     geom_abline(data = dummy, 
                 aes(slope = slope / 365, 
                     intercept = intercept -
@@ -206,7 +208,7 @@ Test usgs `restrend` Package for working with censored data.
 library(restrend)
 library(smwrQW)
 
-test_data <- filter(bc_nested, SITE_NO == "BC08FC0001", PARAM_SHORT_NAME == "ZINC TOTAL") %>% 
+test_data <- filter(bc_nested, SITE_NO == "BC08FC0001", PARAM_SHORT_NAME == "CARBON DISSOLVED ORGANIC") %>% 
   select(full_monthly) %>% 
   unnest() %>% 
   arrange(Date)
