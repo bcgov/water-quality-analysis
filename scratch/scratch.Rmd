@@ -155,17 +155,19 @@ bc08fc0001_mag <- filter(bc_nested, SITE_NO == "BC08KA0007",
   pull(clean_data) %>% 
   pluck(1)
 
-bc08fc0001_mag_gam <- mgcv::gamm(Value ~ s(month, bs = "cc", k = 12) + 
-                                   s(Time, bs = "cr", k = 20), 
-                                 # correlation = corCAR1(form = ~ 1),
-                                 data = bc08fc0001_mag, 
-                                 # family = Gamma,
-                                 method = "REML")
+bc08fc0001_mag_gam <- mgcv::gamm(
+  Value ~ s(month, bs = "cc", k = 12) + 
+    s(Time, bs = "cr", k = 20), 
+  correlation = corARMA(form = ~ 1 | Time, p = 2),
+  data = bc08fc0001_mag, 
+  family = Gamma(link = "log"),
+  method = "REML"
+)
 
 # Check the residuals for evidence of autocorrelation:
 par(mfrow = c(1,2))
-acf(resid(bc08fc0001_mag_gam$gam, main = "ACF"))
-pacf(resid(bc08fc0001_mag_gam$gam, main = "pACF"))
+acf(resid(bc08fc0001_mag_gam$gam, main = "ACF"), lag.max = 60)
+pacf(resid(bc08fc0001_mag_gam$gam, main = "pACF"), lag.max = 60)
 # These look fine (I think) so don't need to add a correlation structure
 
 ## Do some checks
@@ -330,12 +332,10 @@ options(mc.cores = 4L)
 # pp_check(foo)
 # pp_check(foo, type = "ecdf_overlay")
 
-foo <- brm(bf(Value| cens(censored) ~ s(month, bs = "cc", k = 12) +
-                s(Time, k = 20), 
-              family = gen_extreme_value(link = "log")),
+foo <- brm(bf(Value | cens(censored) ~ s(month, bs = "cc", k = 12) +
+                s(Time, k = 20)),
            data = bc08fc0001_mag, 
-           # family = lognormal(), 
-           control = list(adapt_delta = 0.99))
+           family = Gamma(link = "log"))
 
 pp_check(foo)
 pp_check(foo, type = "ecdf_overlay")
