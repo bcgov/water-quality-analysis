@@ -152,13 +152,24 @@ end of December and beginning of January match up (cyclic), and a smooth trend:
 
 bc08fc0001_mag <- filter(bc_nested, SITE_NO == "BC08KA0007", 
                               PARAM_SHORT_NAME == "MAGNESIUM") %>% 
-  pull(clean_data) %>% 
-  pluck(1)
+  pull(full_monthly) %>% 
+  pluck(1) %>% 
+  mutate(time = as.numeric(Date) / 1000)
+
+## Checking time series properties
+library(astsa)
+mag_ts <- as.ts(bc08fc0001_mag$month_avg)
+plot(mag_ts)
+acf2(mag_ts, max.lag = 60)
+dl_mag_ts <- diff(log(mag_ts))
+plot(dl_mag_ts)
+acf2(dl_mag_ts)
+sarima(dl_mag_ts, p = 0, d = 0, q = 0)
 
 bc08fc0001_mag_gam <- mgcv::gamm(
-  Value ~ s(month, bs = "cc", k = 12) + 
-    s(Time, bs = "cr", k = 20), 
-  correlation = corARMA(form = ~ 1 | Time, p = 2),
+  month_avg ~ s(month, bs = "cc", k = 12) + 
+    s(time), 
+  correlation = corARMA(p = 1),
   data = bc08fc0001_mag, 
   family = Gamma(link = "log"),
   method = "REML"
@@ -166,8 +177,8 @@ bc08fc0001_mag_gam <- mgcv::gamm(
 
 # Check the residuals for evidence of autocorrelation:
 par(mfrow = c(1,2))
-acf(resid(bc08fc0001_mag_gam$gam, main = "ACF"), lag.max = 60)
-pacf(resid(bc08fc0001_mag_gam$gam, main = "pACF"), lag.max = 60)
+acf(resid(bc08fc0001_mag_gam$gam), lag.max = 60, main = "ACF")
+pacf(resid(bc08fc0001_mag_gam$gam), lag.max = 60, main = "pACF")
 # These look fine (I think) so don't need to add a correlation structure
 
 ## Do some checks
@@ -192,7 +203,7 @@ Now let's try to plot the trend:
 pred_data <- tibble(Date = seq(min(bc08fc0001_mag$Date, na.rm = TRUE), 
                                max(bc08fc0001_mag$Date, na.rm = TRUE), 
                                length.out = 200), 
-                    Time = as.numeric(Date) / 1000, 
+                    time = as.numeric(Date) / 1000, 
                     month = month(Date))
 
 ## predict trend contributions
@@ -205,11 +216,12 @@ pred_data <- mutate(pred_data,
                     pred = p$fit[,2] + coef(bc08fc0001_mag_gam$gam)["(Intercept)"],  
                     se = p$se.fit[,2])
 
-# Plot - note need to exp() the predicted values because they were logged
-ggplot(pred_data, aes(x = Date, y = pred)) +
-  geom_point(data = bc08fc0001_mag, aes(y = Value)) + 
-  geom_ribbon(aes(ymin = pred - se, ymax = pred + se), fill = "grey") + 
-  geom_line()
+# Plot - note need to exp() the predicted values because fit on log scale
+ggplot(pred_data, aes(x = Date, y = exp(pred))) +
+  geom_ribbon(aes(ymin = exp(pred - se), ymax = exp(pred + se)), 
+              fill = "skyblue2", alpha = 0.3) + 
+  geom_point(data = bc08fc0001_mag, aes(y = month_avg)) + 
+  geom_line(colour = "blue")
 
 ```
 
@@ -236,24 +248,24 @@ pred_data <- mutate(pred_data,
                   upper_sim_ci  = ci[2, ])
 
 
-ggplot(bc08fc0001_mag, aes(x = Time, y = Value)) + 
+ggplot(bc08fc0001_mag, aes(x = time, y = month_avg)) + 
   geom_point() + 
-  geom_ribbon(data = pred_data, aes(ymin = lower_sim_ci, ymax = upper_sim_ci, x = Time, y = fitted),
+  geom_ribbon(data = pred_data, aes(ymin = lower_sim_ci, ymax = upper_sim_ci, x = time, y = fitted),
                  alpha = 0.8, fill = "grey") +
-    geom_line(data = pred_data, aes(y = fitted, x = Time))
+    geom_line(data = pred_data, aes(y = exp(fitted), x = time))
 
 
 devtools::source_gist("ca18c9c789ef5237dbc6", filename = "derivSimulCI.R")
 
-fd <- derivSimulCI(bc08fc0001_mag_gam, term = "Time", samples = 1000, n = 200)
+fd <- derivSimulCI(bc08fc0001_mag_gam, term = "time", samples = 1000, n = 200)
 
 CI <- apply(fd[[1]]$simulations, 1, quantile, probs = c(0.025, 0.975))
 
-sigD <- signifD(fd[["Time"]]$deriv, fd[["Time"]]$deriv, CI[2, ], CI[1, ],
+sigD <- signifD(fd[["time"]]$deriv, fd[["time"]]$deriv, CI[2, ], CI[1, ],
                 eval = 0)
 
 pred_data <- mutate(pred_data,
-                  derivative = fd[["Time"]]$deriv[, 1], # computed first derivative
+                  derivative = fd[["time"]]$deriv[, 1], # computed first derivative
                   fdUpper = CI[2, ],                    # upper CI on first deriv
                   fdLower = CI[1, ],                    # lower CI on first deriv
                   increasing = sigD$incr,               # where is curve increasing?
@@ -268,20 +280,21 @@ pred_data <- mutate(pred_data,
 # interval on the derivative doesn't include 0 - suggesting periods of 
 # statistically significant change in the value.
 
-ggplot(pred_data, aes(x = Time, y = derivative)) +
+ggplot(pred_data, aes(x = time, y = derivative)) +
     geom_ribbon(aes(ymax = fdUpper, ymin = fdLower), alpha = 0.3, fill = "grey") +
     geom_line() +
     geom_line(aes(y = increasing), size = 1.5) +
     geom_line(aes(y = decreasing), size = 1.5) +
-    ylab(expression(italic(hat(f) * "'") * (Time))) +
+    ylab(expression(italic(hat(f) * "'") * (time))) +
     xlab("Time")
 
 # Replot original fitted line of trend, but with the period(s) identified
 # by first derivative as periods of significant change
 
-ggplot(pred_data, aes(x = Date, y = pred)) +
-  geom_point(data = bc08fc0001_mag, aes(y = Value)) + 
-  geom_ribbon(aes(ymin = pred - se, ymax = pred + se), fill = "grey", alpha = 0.7) + 
+ggplot(pred_data, aes(x = Date, y = exp(pred))) +
+  geom_point(data = bc08fc0001_mag, aes(y = month_avg)) + 
+  geom_ribbon(aes(ymin = exp(pred - se), ymax = exp(pred + se)), 
+              fill = "grey", alpha = 0.7) + 
   geom_line() + 
   geom_line(data = pred_data[!is.na(pred_data$direction), ], 
             aes(colour = direction), 
