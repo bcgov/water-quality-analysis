@@ -1,6 +1,7 @@
 ---
 title: "Trend Exploration"
 output: html_document
+---
 
 ```{r setup, include=FALSE}
 library(canwqdata)
@@ -157,14 +158,25 @@ bc08fc0001_mag <- filter(bc_nested, SITE_NO == "BC08KA0007",
 
 ## Checking time series properties
 library(astsa)
-mag_ts <- as.ts(bc08fc0001_mag$month_avg)
+mag_ts <- ts(bc08fc0001_mag$month_avg, start = c(2004, 1), frequency = 12)
 plot(mag_ts)
-acf2(mag_ts, max.lag = 60)
-dl_mag_ts <- diff(log(mag_ts))
+# trend, so difference to remove it
+dl_mag_ts <- diff(mag_ts)
 plot(dl_mag_ts)
-acf2(dl_mag_ts)
-sarima(dl_mag_ts, p = 0, d = 0, q = 0)
+par(mfrow = c(2, 1))
+acf(dl_mag_ts, lag.max = 60, na.action = na.pass)
+pacf(dl_mag_ts, lag.max = 60, na.action = na.pass, ylim = c(-2, 2))
+# ACF trails off at seasonal intervals and within seasons
+# pACF is weird, but looks like it trails off seasonally, and tails off within seasons
+p1q0P1Q0 <- sarima(mag_ts, p = 0, d = 1, q = 0, P = 1, D = 1, Q = 0, S = 12)
+p1q0P1Q1 <- sarima(mag_ts, p = 1, d = 1, q = 0, P = 1, D = 1, Q = 1, S = 12)
+p1q1P1Q1 <- sarima(mag_ts, p = 1, d = 1, q = 1, P = 1, D = 1, Q = 1, S = 12)
+p1q1P0Q1 <- sarima(mag_ts, p = 1, d = 1, q = 1, P = 0, D = 1, Q = 1, S = 12)
+data.frame(p1q0P1Q0$AICc, p1q0P1Q1$AICc, p1q1P1Q1$AICc, p1q1P0Q1$AICc)
+# p1q1P1Q1 wins: SARIMA(1,1,1)x(1,1,1)12 but diagnostics still not great.
 
+
+# use corARMA with p =1 (seasonal should already by taken car of by seasonal smooth on month)
 bc08fc0001_mag_gam <- mgcv::gamm(
   month_avg ~ s(month, bs = "cc", k = 12) + 
     s(time), 
