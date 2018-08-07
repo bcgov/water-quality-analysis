@@ -208,15 +208,15 @@ Test usgs `restrend` Package for working with censored data.
 library(restrend)
 library(smwrQW)
 
-test_data <- filter(bc_nested, SITE_NO == "BC08FC0001", PARAM_SHORT_NAME == "CARBON DISSOLVED ORGANIC") %>% 
+test_data <- filter(bc_nested, SITE_NO == "BC08FC0001", PARAM_SHORT_NAME == "LEAD TOTAL") %>% 
   select(full_monthly) %>% 
   unnest() %>% 
   arrange(Date)
 
-test_cens <- as.lcens(test_data$Value, test_data$DetectionLimit)
+test_cens <- as.lcens(test_data$month_avg, test_data$detection_limit, test_data$censored)
 
 censSeaken(test_cens)
 
-seaken(test_data$Value)
+seaken(test_data$month_avg)
 ```
 
