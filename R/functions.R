@@ -27,6 +27,23 @@ make_censor <- function(x) {
   )
 }
 
+
+#' Take average of parameter values containing censored data
+#' 
+#' If there are both censored and non-censored values, just take the average of 
+#' non-censored values. (This is probably not a great idea)
+#'
+#' @param x vector of values
+#' @param censor vector of whether values are censored or not (same length as `x`)
+#' @param censored_val what denotes censoring (e.g, `TRUE`, `"left"`, `"<"`, etc)
+#' @param stat function to use for averaging (default `mean`)
+#' @param ... 
+#'
+#' @return a length-one numeric vector that is the average of x. If all values 
+#' are censored, returns`NA`
+#' @export
+#'
+#' @examples
 avg_censored <- function(x, censor, censored_val = c("left", "right"), stat = mean, ...) {
   if (length(x) != length(censor)) {
     stop("x and censor must be the same length", call. = FALSE)
