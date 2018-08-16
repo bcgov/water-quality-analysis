@@ -13,7 +13,7 @@ library(wqbc)
 library(mgcv)
 library(broom)
 library(readr)
-library(schoenberg) # devtools::install_github('gavinsimpson/schoenberg')
+library(gratia) # devtools::install_github("gavinsimpson/gratia")
 library(here)
 library(feather)
 library(purrr)
@@ -129,8 +129,6 @@ bc_nested <- bc_nested %>%
           ggtitle(paste(x, y, sep = ": "))
       }))
 
-# bc_nested %>% select(SITE_NO, PARAM_SHORT_NAME, full_monthly) %>% unnest %>% View()
-
 saveRDS(bc_nested, here("tmp/bc_nested.rds"))
 ```
 
@@ -157,23 +155,23 @@ bc08fc0001_mag <- filter(bc_nested, SITE_NO == "BC08KA0007",
   mutate(time = as.numeric(Date) / 1000)
 
 ## Checking time series properties
-library(astsa)
-mag_ts <- ts(bc08fc0001_mag$month_avg, start = c(2004, 1), frequency = 12)
-plot(mag_ts)
-# trend, so difference to remove it
-dl_mag_ts <- diff(mag_ts)
-plot(dl_mag_ts)
-par(mfrow = c(2, 1))
-acf(dl_mag_ts, lag.max = 60, na.action = na.pass)
-pacf(dl_mag_ts, lag.max = 60, na.action = na.pass, ylim = c(-2, 2))
-# ACF trails off at seasonal intervals and within seasons
-# pACF is weird, but looks like it trails off seasonally, and tails off within seasons
-p1q0P1Q0 <- sarima(mag_ts, p = 0, d = 1, q = 0, P = 1, D = 1, Q = 0, S = 12)
-p1q0P1Q1 <- sarima(mag_ts, p = 1, d = 1, q = 0, P = 1, D = 1, Q = 1, S = 12)
-p1q1P1Q1 <- sarima(mag_ts, p = 1, d = 1, q = 1, P = 1, D = 1, Q = 1, S = 12)
-p1q1P0Q1 <- sarima(mag_ts, p = 1, d = 1, q = 1, P = 0, D = 1, Q = 1, S = 12)
-data.frame(p1q0P1Q0$AICc, p1q0P1Q1$AICc, p1q1P1Q1$AICc, p1q1P0Q1$AICc)
-# p1q1P1Q1 wins: SARIMA(1,1,1)x(1,1,1)12 but diagnostics still not great.
+# library(astsa)
+# mag_ts <- ts(bc08fc0001_mag$month_avg, start = c(2004, 1), frequency = 12)
+# plot(mag_ts)
+# # trend, so difference to remove it
+# dl_mag_ts <- diff(mag_ts)
+# plot(dl_mag_ts)
+# par(mfrow = c(2, 1))
+# acf(dl_mag_ts, lag.max = 60, na.action = na.pass)
+# pacf(dl_mag_ts, lag.max = 60, na.action = na.pass, ylim = c(-2, 2))
+# # ACF trails off at seasonal intervals and within seasons
+# # pACF is weird, but looks like it trails off seasonally, and tails off within seasons
+# p1q0P1Q0 <- sarima(mag_ts, p = 0, d = 1, q = 0, P = 1, D = 1, Q = 0, S = 12)
+# p1q0P1Q1 <- sarima(mag_ts, p = 1, d = 1, q = 0, P = 1, D = 1, Q = 1, S = 12)
+# p1q1P1Q1 <- sarima(mag_ts, p = 1, d = 1, q = 1, P = 1, D = 1, Q = 1, S = 12)
+# p1q1P0Q1 <- sarima(mag_ts, p = 1, d = 1, q = 1, P = 0, D = 1, Q = 1, S = 12)
+# data.frame(p1q0P1Q0$AICc, p1q0P1Q1$AICc, p1q1P1Q1$AICc, p1q1P0Q1$AICc)
+# # p1q1P1Q1 wins: SARIMA(1,1,1)x(1,1,1)12 but diagnostics still not great.
 
 
 # use corARMA with p =1 (seasonal should already by taken car of by seasonal smooth on month)
@@ -203,7 +201,6 @@ gam.check(bc08fc0001_mag_gam$gam)
 par(mfrow = c(1,1))
 
 draw(bc08fc0001_mag_gam$gam)
-# not great
 ```
 
 Now let's try to plot the trend:
@@ -244,9 +241,6 @@ is significantly increasing or decreasing.
 From: https://www.fromthebottomoftheheap.net/2016/03/25/additive-modeling-global-temperature-series-revisited/
 
 ```{r}
-
-devtools::source_gist("d23ae67e653d5bfff652", filename = "simulate.gamm.R")
-
 set.seed(10)
 
 sims <- simulate(bc08fc0001_mag_gam, nsim = 10000, newdata = pred_data)
@@ -258,32 +252,33 @@ pred_data <- mutate(pred_data,
                   lower_sim_ci  = ci[1, ],
                   upper_sim_ci  = ci[2, ])
 
+ggplot(bc08fc0001_mag, aes(x = time)) + 
+  geom_point(aes(y = month_avg)) + 
+  geom_ribbon(data = pred_data, 
+              aes(ymin = exp(lower_sim_ci), ymax = exp(upper_sim_ci)),
+              alpha = 0.8, fill = "grey") +
+  geom_line(data = pred_data, aes(y = exp(fitted)))
 
-ggplot(bc08fc0001_mag, aes(x = time, y = month_avg)) + 
-  geom_point() + 
-  geom_ribbon(data = pred_data, aes(ymin = lower_sim_ci, ymax = upper_sim_ci, x = time, y = fitted),
-                 alpha = 0.8, fill = "grey") +
-    geom_line(data = pred_data, aes(y = exp(fitted), x = time))
+fd <- fderiv(bc08fc0001_mag_gam, term = "time", n = 200)
 
+fd_ci <- confint(fd, parm = "time", type = "simultaneous", nsim = 10000)
 
-devtools::source_gist("ca18c9c789ef5237dbc6", filename = "derivSimulCI.R")
-
-fd <- derivSimulCI(bc08fc0001_mag_gam, term = "time", samples = 1000, n = 200)
-
-CI <- apply(fd[[1]]$simulations, 1, quantile, probs = c(0.025, 0.975))
-
-sigD <- signifD(fd[["time"]]$deriv, fd[["time"]]$deriv, CI[2, ], CI[1, ],
-                eval = 0)
+# Determine areas of significant increase and decrease
+fd_ci <- mutate(fd_ci,
+                incr = est > 0 & lower > 0,
+                decr = est < 0 & upper < 0)
 
 pred_data <- mutate(pred_data,
-                  derivative = fd[["time"]]$deriv[, 1], # computed first derivative
-                  fdUpper = CI[2, ],                    # upper CI on first deriv
-                  fdLower = CI[1, ],                    # lower CI on first deriv
-                  increasing = sigD$incr,               # where is curve increasing?
-                  decreasing = sigD$decr, 
-                  direction = ifelse(!is.na(increasing), "increasing", 
-                                     ifelse(!is.na(decreasing), "decreasing", 
-                                            NA)))
+                    fderiv = fd_ci$est, # computed first derivative
+                    fd_upper = fd_ci$upper,  # upper CI on first deriv
+                    fd_lower = fd_ci$lower,  # lower CI on first deriv
+                    # where is curve increasing?
+                    increasing = ifelse(fd_ci$incr, fderiv, NA_real_),
+                    # where is curve decreasing?
+                    decreasing = ifelse(fd_ci$decr, fderiv, NA_real_),
+                    direction = ifelse(fd_ci$incr, "increasing", 
+                                       ifelse(fd_ci$decr, "decreasing", 
+                                              NA)))
 
 # The first derivatives of the fitted trend can be used to determine where 
 # values are increasing or decreasing. Using the standard error of the 
@@ -291,8 +286,8 @@ pred_data <- mutate(pred_data,
 # interval on the derivative doesn't include 0 - suggesting periods of 
 # statistically significant change in the value.
 
-ggplot(pred_data, aes(x = time, y = derivative)) +
-    geom_ribbon(aes(ymax = fdUpper, ymin = fdLower), alpha = 0.3, fill = "grey") +
+ggplot(pred_data, aes(x = time, y = fderiv)) +
+    geom_ribbon(aes(ymax = fd_upper, ymin = fd_lower), alpha = 0.3, fill = "grey") +
     geom_line() +
     geom_line(aes(y = increasing), size = 1.5) +
     geom_line(aes(y = decreasing), size = 1.5) +
