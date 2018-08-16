@@ -220,3 +220,22 @@ censSeaken(test_cens)
 seaken(test_data$month_avg)
 ```
 
+Testing estimating censored values, ideas from 
+
+```{r}
+library(EnvStats)
+
+test_data <- bc_nested %>% 
+  filter(SITE_NO == "AK08DC0001", PARAM_SHORT_NAME == "CARBON DISSOLVED ORGANIC") %>% 
+  select(SITE_NO, PARAM_SHORT_NAME, clean_data) %>% 
+  unnest()
+
+# Naive mean:
+mean(test_data$Value)
+
+elnormAltCensored(test_data$Value, test_data$censored != "none", method = "rROS")
+elnormAltCensored(test_data$Value, test_data$censored != "none", method = "mle")
+elnormAltCensored(test_data$Value, test_data$censored != "none", method = "bcmle")
+
+```
+

@@ -268,6 +268,10 @@ fd_ci <- mutate(fd_ci,
                 incr = est > 0 & lower > 0,
                 decr = est < 0 & upper < 0)
 
+# Calculate simultaneous 95% confidence intervals on s(time)
+pred_ci <- confint(bc08fc0001_mag_gam, parm = "time", type = "simultaneous", 
+                   nsim = 10000)
+
 ## Add the first derivatives and their ci's to the predicted data
 pred_data <- bind_cols(
   pred_data, 
@@ -282,7 +286,11 @@ pred_data <- bind_cols(
             direction = factor(ifelse(incr, "increasing", 
                                ifelse(decr, "decreasing", 
                                       NA)), 
-                               levels = c("increasing", "decreasing")))
+                               levels = c("increasing", "decreasing"))), 
+  transmute(pred_ci, 
+            pred_time = est,
+            time_sim_upper = upper, 
+            time_sim_lower = lower)
   )
 
 # The first derivatives of the fitted trend can be used to determine where 
@@ -306,9 +314,9 @@ ggplot(pred_data, aes(x = time, y = fderiv)) +
 # Replot original fitted line of trend, but with the period(s) identified
 # by first derivative as periods of significant change
 
-ggplot(pred_data, aes(x = Date, y = exp(pred))) +
+ggplot(pred_data, aes(x = Date, y = exp(pred_time))) +
   geom_point(data = bc08fc0001_mag, aes(y = month_avg)) + 
-  geom_ribbon(aes(ymin = exp(pred - se), ymax = exp(pred + se)), 
+  geom_ribbon(aes(ymin = exp(time_sim_lower), ymax = exp(time_sim_upper)), 
               fill = "grey", alpha = 0.7) + 
   geom_line() + 
   geom_line(data = pred_data[!is.na(pred_data$direction), ], 
