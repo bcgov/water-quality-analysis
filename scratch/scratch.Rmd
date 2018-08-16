@@ -268,17 +268,22 @@ fd_ci <- mutate(fd_ci,
                 incr = est > 0 & lower > 0,
                 decr = est < 0 & upper < 0)
 
-pred_data <- mutate(pred_data,
-                    fderiv = fd_ci$est, # computed first derivative
-                    fd_upper = fd_ci$upper,  # upper CI on first deriv
-                    fd_lower = fd_ci$lower,  # lower CI on first deriv
-                    # where is curve increasing?
-                    increasing = ifelse(fd_ci$incr, fderiv, NA_real_),
-                    # where is curve decreasing?
-                    decreasing = ifelse(fd_ci$decr, fderiv, NA_real_),
-                    direction = ifelse(fd_ci$incr, "increasing", 
-                                       ifelse(fd_ci$decr, "decreasing", 
-                                              NA)))
+## Add the first derivatives and their ci's to the predicted data
+pred_data <- bind_cols(
+  pred_data, 
+  transmute(fd_ci,
+            fderiv = est, # computed first derivative
+            fd_upper = upper,  # upper CI on first deriv
+            fd_lower = lower,  # lower CI on first deriv
+            # where is curve increasing?
+            increasing = ifelse(incr, fderiv, NA_real_),
+            # where is curve decreasing?
+            decreasing = ifelse(decr, fderiv, NA_real_),
+            direction = factor(ifelse(incr, "increasing", 
+                               ifelse(decr, "decreasing", 
+                                      NA)), 
+                               levels = c("increasing", "decreasing")))
+  )
 
 # The first derivatives of the fitted trend can be used to determine where 
 # values are increasing or decreasing. Using the standard error of the 
@@ -291,8 +296,12 @@ ggplot(pred_data, aes(x = time, y = fderiv)) +
     geom_line() +
     geom_line(aes(y = increasing), size = 1.5) +
     geom_line(aes(y = decreasing), size = 1.5) +
-    ylab(expression(italic(hat(f) * "'") * (time))) +
-    xlab("Time")
+    labs(
+      title = "First derivative of fitted trend plus simultaneous confidence intervals",
+      caption = "Where CI's don't cross zero it denotes a period where the trend is differnt from zero.",
+      y = expression(italic(hat(f) * "'") * (time)), 
+      x = "Time"
+      )
 
 # Replot original fitted line of trend, but with the period(s) identified
 # by first derivative as periods of significant change
@@ -305,7 +314,12 @@ ggplot(pred_data, aes(x = Date, y = exp(pred))) +
   geom_line(data = pred_data[!is.na(pred_data$direction), ], 
             aes(colour = direction), 
             size = 1, lineend = "round") + 
-  labs(y = "Value", colour = "Trend direction")
+  scale_color_manual(values = c("skyblue2", "orange"), drop = FALSE) + 
+  labs(
+    title = "Estimated smooth trend of concentration of Magnesium",
+    caption = "Periods where the trend is estimated to be significantly different 
+from zero are shown in blue (increasing) or orange (decreasing)",
+    y = "Value", colour = "Trend direction")
 
 
 ```
