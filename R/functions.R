@@ -44,14 +44,21 @@ make_censor <- function(x) {
 #' @export
 #'
 #' @examples
-avg_censored <- function(x, censor, censored_val = c("left", "right"), stat = mean, ...) {
+avg_censored <- function(x, censor, censored_val = c("left", "right"), stat = median, 
+                         censor_treatment  = c("value", "half", "skip"), ...) {
+  censor_treatment <- match.arg(censor_treatment)
   if (length(x) != length(censor)) {
     stop("x and censor must be the same length", call. = FALSE)
   }
   if (all(censor %in% censored_val)) {
     return(NA_real_)
   }
-  stat(x[!censor %in% censored_val], ...)
+  if (censor_treatment == "skip") {
+    return(stat(x[!censor %in% censored_val], ...))
+  } else if (censor_treatment == "half") {
+    x[censor %in% censored_val] <- x / 2
+  } 
+  stat(x, ...)
 }
 
 plot_smk <- function(data, smk, yvar, datevar) {
@@ -96,7 +103,8 @@ month_complete <- function(x) {
               detection_limit = unique(DetectionLimit),
               month_avg = ifelse(!censored, month_avg, 
                                  detection_limit),
-              n_dl = n_distinct(DetectionLimit)) %>% 
+              n_dl = n_distinct(DetectionLimit), 
+              units = first(Units)) %>% 
     ungroup() %>% 
     complete(year = full_seq(year, 1), month = full_seq(month, 1)) %>% 
     mutate(Date = as.Date(paste(year, month, "15", sep = "-"))) %>% 
