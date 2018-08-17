@@ -80,3 +80,25 @@ plot_smk <- function(data, smk, yvar, datevar) {
                           "; P-value: ", round(p_val, 3)))
 }
 
+month_complete <- function(x) {
+  x %>% 
+    group_by(year, month) %>% 
+    # for each month, keep reading(s) with lowest detection limit,
+    # or when there is no detection limit (i.e., for pH)
+    filter((DetectionLimit == min(DetectionLimit, na.rm = TRUE)) | 
+             all(is.na(DetectionLimit))) %>% 
+    summarise(month_avg = avg_censored(Value, censored, na.rm = TRUE), 
+              n = n(),
+              sd = sd(Value, na.rm = TRUE), 
+              cv = (sd / month_avg) * 100,
+              n_censored = sum(censored != "none", na.rm = TRUE),
+              censored = is.na(month_avg) & n_censored,
+              detection_limit = unique(DetectionLimit),
+              month_avg = ifelse(!censored, month_avg, 
+                                 detection_limit),
+              n_dl = n_distinct(DetectionLimit)) %>% 
+    ungroup() %>% 
+    complete(year = full_seq(year, 1), month = full_seq(month, 1)) %>% 
+    mutate(Date = as.Date(paste(year, month, "15", sep = "-"))) %>% 
+    arrange(Date)
+}
