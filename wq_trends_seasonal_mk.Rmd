@@ -177,7 +177,7 @@ for (s in station_results$SITE_NO) {
     mutate(slope_disp = ifelse(sig, 
                                format(slope, trim = TRUE, digits = 1, 
                                       scientific = 1, drop0trailing = TRUE), 
-                               ""))
+                               NA_character_))
   
   site_name <- tools::toTitleCase(tolower(
     bc_stations[bc_stations$SITE_NO == s, "SITE_NAME"]
@@ -198,13 +198,15 @@ for (s in station_results$SITE_NO) {
             ((slope / 365) * as.numeric(as.Date("2004-01-15"))), 
           colour = sig)
     ) +
-    geom_text(data = res, x = max(d$Date), 
+    geom_label(data = res, x = max(d$Date), 
               aes(y = label_y, label = slope_disp), 
-              vjust = "inward", hjust = "inward", size = 2.5) + 
+              vjust = "inward", hjust = "inward", size = 2, 
+              label.padding = unit(0.1, "lines")) + 
     facet_wrap(vars(PARAM_SHORT_NAME), scales = "free_y", 
                labeller = label_wrap_gen(width = 15)) + 
     theme_minimal(base_size = 9) + 
-    theme(strip.text = element_text(size = 6)) + 
+    theme(strip.text = element_text(size = 6), 
+          axis.text = element_text(size = 5)) + 
     labs(title = site_name, 
          subtitle = sprintf("Site No: %s", s), 
          caption = "Slope of significant trends (in units/year) are shown on each graph panel",
