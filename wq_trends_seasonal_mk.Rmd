@@ -1,0 +1,236 @@
+---
+title: "Trends in Water Quality in BC Rivers (DRAFT 1)"
+author: "Andy Teucher"
+date: "`r Sys.Date()`"
+output: pdf_document
+params: 
+  refresh_data: FALSE
+---
+
+```{r setup, include=FALSE}
+library(canwqdata)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(lubridate)
+library(wqbc)
+library(mgcv)
+library(broom)
+library(readr)
+library(gratia) # devtools::install_github("gavinsimpson/gratia")
+library(here)
+library(feather)
+library(purrr)
+library(smwrStats)
+library(smwrGraphs)
+source(here::here("R/functions.R"))
+dir.create(here::here("out"))
+
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+
+options(wqbc.messages = FALSE)
+```
+
+```{r load, eval=params$refresh_data || !file.exists(here::here("data/bcdata.rds"))}
+bc_stations <- wq_sites() %>% 
+  filter(SITE_NO %in% wqbc::ems_ec_stations$envirodat_no)
+
+bc_data <- wq_site_data(unique(bc_stations$SITE_NO)) %>% 
+  left_join(select(bc_stations, SITE_NO, PEARSEDA), 
+            by = "SITE_NO") %>% 
+  distinct()
+
+bc_data$VALUE_VALEUR[bc_data$VALUE_VALEUR < -900] <- NA
+
+saveRDS(bc_data, here::here("data/bcdata.rds"))
+saveRDS(bc_stations, here::here("data/bc_stations.rds"))
+```
+
+
+```{r EC-data-tidy}
+# load data
+bc_data <- readRDS(here::here("data/bcdata.rds"))
+bc_stations <- readRDS(here::here("data/bc_stations.rds"))
+# load parameters:
+wq_params <- read_csv(here::here("data/parameters.csv"))
+
+# TODO - check wq_params with very high CV - especially TEMPERATURE WATER vs 
+# TEMPERATURE WATER (FIELD)
+
+bc_tidy <- tidy_ec_data(bc_data, cols = "PEARSEDA", mdl_action = "mdl") %>% 
+  add_shortnames() %>% 
+  filter(PARAM_SHORT_NAME %in% wq_params$Variable_short_name, 
+         year(DateTime) > 2003) %>% 
+  group_by(SITE_NO, PARAM_SHORT_NAME, DateTime, Units, DetectionLimit, 
+           ResultLetter, PEARSEDA) %>% 
+  summarise(sd = sd(Value, na.rm = TRUE), 
+            Value = mean(Value, na.rm = TRUE), 
+            cv = (sd / Value) * 100,
+            n = n()) %>% 
+  ungroup() %>% 
+  mutate(year = year(DateTime), 
+         month = month(DateTime), 
+         censored = make_censor(ResultLetter))
+
+bc_site_var_summary <- bc_tidy %>% group_by(SITE_NO, PARAM_SHORT_NAME) %>% 
+  summarize(min_year = min(year, na.rm = TRUE), 
+            max_year = max(year, na.rm = TRUE), 
+            nyears = max_year - min_year + 1,
+            n_obs = n(),
+            n_cens = sum(censored != "none")) %>% 
+  filter(max_year >= 2013, nyears >= 10) %>% 
+  ungroup()
+
+bc_tidy <- inner_join(bc_tidy, bc_site_var_summary, 
+                      by = c("SITE_NO", "PARAM_SHORT_NAME"))
+
+# TODO: trim ends of ts when very sparse data
+```
+
+
+```{r clean-make-monthly}
+
+bc_nested <- tidyr::nest(bc_tidy, -PEARSEDA, -SITE_NO, -PARAM_SHORT_NAME, 
+                         -min_year, -max_year, -nyears, -n_obs, -n_cens)
+
+bc_nested <- bc_nested %>% mutate(
+  clean_data = map(data, ~ {
+    clean_wqdata(.x) %>% 
+      mutate(censored = make_censor(ResultLetter), 
+             month = month(Date, label = FALSE), 
+             year = year(Date), 
+             Time = as.numeric(Date) / 1000) %>% 
+      arrange(Date)
+  }), 
+  full_monthly = map(clean_data, month_complete)
+)
+```
+
+```{r smk}
+bc_nested <- mutate(
+  bc_nested, 
+  sk = map(full_monthly, ~ {
+    seaken(.x$month_avg, 12)
+  }), 
+  p_val = map_dbl(sk, "p.value"), 
+  sig = p_val < 0.05,
+  slope = map_dbl(sk, list("estimate", "slope")), 
+  intercept = map_dbl(sk, list("estimate", "median.data")) - 
+    (map_dbl(sk, list("estimate", "median.time")) * slope), 
+  smk_plot = pmap(
+    list(d = full_monthly, m = sk, s = SITE_NO, 
+         v = PARAM_SHORT_NAME), function(d, m, s, v) {
+           plot_smk(d, m, "month_avg", "Date") + 
+             labs(title = paste(s, v, sep = ": "), 
+                  x = "Date", y = "Value")
+           
+         })
+)
+```
+
+Inital results of seasonal Mann-Kendall trend tests of selected parameters at 
+water quality monitoring stations from the Federal-Provincial water quality 
+monitoring network.
+
+## Data preparation
+
+The following data preparation steps were applied:
+
+- Data from 2004 on were retained (due to changes in detection limits - this can be changed)
+- Multiple readings from the same day were averaged (this was rare; only `r sum(bc_tidy$n > 1)` records had more than one daily reading))
+- Values were aggregated to monthly medians; censored values were replaced with the detection limit. Literature suggests that this is not optimal as it biases any measure of central tendency upward (as the true value is less than the DL).  However, median is more robust to this bias than the mean. I intend to investigate better ways to treat censored data. When there were multiple readings in a month with different detection limits, only the records with the lowest detection limit were used.
+- Full records were created (one record for every month of every year of the time series). 
+- Only used records that were longer than 10 years and had readings up until at least 2014.
+
+### TO DO (data preparation):
+
+- Check params with very high dailiy CV - especially `TEMPERATURE WATER` vs `TEMPERATURE WATER (FIELD)`
+- Trim ends of time series when they are very sparse
+- Better deal with censored data?
+- Look at what earlier data (earlier than 2004) should be used
+
+## Trend analysis
+- For each parameter at each station, performed a Seasonall Kendall test with Sen slope estimator using the `seaken` function in the [`smwrStats` R package](https://github.com/USGS-R/smwrStats). This performs a separate Mann Kendall for each month, and reports the median of all monthly Sen's slopes. The significance of the Seasonal Kendall is assessed using the overall Sk statistic, which is calculated by summing each season’s Kendall S statistic.
+
+```{r results='asis'}
+station_results <- bc_nested %>%
+  select(SITE_NO, PARAM_SHORT_NAME, sk, p_val, sig, slope, intercept) %>% 
+  nest(-SITE_NO, .key = "results")
+
+i <- 1
+for (s in station_results$SITE_NO[1:5]) {
+  d <- bc_nested %>% filter(SITE_NO == s) %>% 
+    select(SITE_NO, PARAM_SHORT_NAME, full_monthly) %>% 
+    unnest() %>% 
+    mutate(censored = case_when(censored ~ "censored", 
+                                TRUE ~ "not censored"))
+  
+  res <- station_results %>% 
+    filter(SITE_NO == s) %>% 
+    unnest() %>% 
+    left_join(group_by(d, SITE_NO, PARAM_SHORT_NAME) %>% 
+                filter(!is.na(month_avg)) %>% 
+                arrange(Date) %>% 
+                summarize(max_val = max(month_avg), 
+                          min_val = min(month_avg),
+                          last_val = last(month_avg), 
+                          label_y = ifelse(
+                            abs(max_val - last_val) > abs(min_val - last_val), 
+                            max_val, min_val)), 
+              by = c("SITE_NO", "PARAM_SHORT_NAME")) %>% 
+    mutate(slope_disp = ifelse(sig, 
+                               format(slope, trim = TRUE, digits = 1, 
+                                      scientific = 1, drop0trailing = TRUE), 
+                               ""))
+  
+  site_name <- tools::toTitleCase(tolower(
+    bc_stations[bc_stations$SITE_NO == s, "SITE_NAME"]
+  ))
+  
+  
+  p <- ggplot(d, aes(x = Date, y = month_avg)) + 
+    # geom_step(aes(y = detection_limit)) + 
+    geom_point(size = 0.3, aes(alpha = censored), colour = "grey30") +
+    scale_alpha_manual(values = c(0.5, 1)) + 
+    scale_x_date(breaks = c(min(d$Date), max(d$Date)), 
+                 date_minor_breaks = "2 years",
+                 date_labels = "%Y") +
+    geom_abline(
+      data = res, 
+      aes(slope = slope / 365, 
+          intercept = intercept - 
+            ((slope / 365) * as.numeric(as.Date("2004-01-15"))), 
+          colour = sig)
+    ) +
+    geom_text(data = res, x = max(d$Date), 
+              aes(y = label_y, label = slope_disp), 
+              vjust = "inward", hjust = "inward", size = 2.5) + 
+    facet_wrap(vars(PARAM_SHORT_NAME), scales = "free_y", 
+               labeller = label_wrap_gen(width = 15)) + 
+    theme_minimal(base_size = 9) + 
+    theme(strip.text = element_text(size = 6)) + 
+    labs(title = site_name, 
+         subtitle = sprintf("Site No: %s", s), 
+         caption = "Slope of significant trends (in units/year) are shown on each graph panel",
+         x = "Date", y = "Value", 
+         colour = "Significant Trend", 
+         alpha = "Censored")
+  print(p)
+  # Add newlines between every second chart
+  if (i %% 2 != 0) {
+    cat("\\newline")
+    cat("\\newline")
+  }
+  i <- i + 1
+  
+}
+
+## TODO: check heterogeneity of slopes. Chi-Sq statitstic reported in `EnvStats::kendallSeasonalTrendTest`
+```
+
+### Summary of data for each parameter at all sites:
+
+```{r}
+knitr::kable(bc_site_var_summary, booktabs = TRUE)
+```
+
