@@ -37,7 +37,9 @@ make_censor <- function(x) {
 #' @param censor vector of whether values are censored or not (same length as `x`)
 #' @param censored_val what denotes censoring (e.g, `TRUE`, `"left"`, `"<"`, etc)
 #' @param stat function to use for averaging (default `mean`)
-#' @param ... 
+#' @param censor_treatment what do do with censored values when aggregating. Options are
+#'  use the value of x (`"value"`; the default), use half the value (`"half"`), or `"skip"`
+#' @param ... values passed on to the `stat` function
 #'
 #' @return a length-one numeric vector that is the average of x. If all values 
 #' are censored, returns`NA`
@@ -56,7 +58,7 @@ avg_censored <- function(x, censor, censored_val = c("left", "right"), stat = me
   if (censor_treatment == "skip") {
     return(stat(x[!censor %in% censored_val], ...))
   } else if (censor_treatment == "half") {
-    x[censor %in% censored_val] <- x / 2
+    x[censor %in% censored_val] <- x[censor %in% censored_val] / 2
   } 
   stat(x, ...)
 }
