@@ -14,17 +14,13 @@ library(tidyr)
 library(ggplot2)
 library(lubridate)
 library(wqbc)
-library(mgcv)
-library(broom)
 library(readr)
-library(gratia) # devtools::install_github("gavinsimpson/gratia")
 library(here)
 library(feather)
 library(purrr)
 library(smwrStats)
 library(smwrGraphs)
 source(here::here("R/functions.R"))
-dir.create(here::here("out"))
 
 knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 
@@ -158,7 +154,7 @@ station_results <- bc_nested %>%
   nest(-SITE_NO, .key = "results")
 
 i <- 1
-for (s in station_results$SITE_NO[1:5]) {
+for (s in station_results$SITE_NO) {
   d <- bc_nested %>% filter(SITE_NO == s) %>% 
     select(SITE_NO, PARAM_SHORT_NAME, full_monthly) %>% 
     unnest() %>% 
