@@ -95,16 +95,17 @@ bc_nested <- bc_nested %>% mutate(
 
 bc_nested <- bc_nested %>% 
   mutate(
-    full_monthly = map(clean_data, month_complete), 
-    lm_plot = pmap(
-      list(SITE_NO, PARAM_SHORT_NAME, clean_data), 
-      function(x, y, z) {
-        ggplot(data = z, mapping = aes(x = Date, y = Value)) + 
-          geom_point(aes(shape = censored, colour = Outlier)) + 
-          geom_step(aes(y = DetectionLimit)) +
-          geom_smooth(method = "lm") + 
-          ggtitle(paste(x, y, sep = ": "))
-      }))
+    full_monthly = map(clean_data, month_complete) # , 
+    # lm_plot = pmap(
+    #   list(SITE_NO, PARAM_SHORT_NAME, clean_data), 
+    #   function(x, y, z) {
+    #     ggplot(data = z, mapping = aes(x = Date, y = Value)) + 
+    #       geom_point(aes(shape = censored, colour = Outlier)) + 
+    #       geom_step(aes(y = DetectionLimit)) +
+    #       geom_smooth(method = "lm") + 
+    #       ggtitle(paste(x, y, sep = ": "))
+    #   })
+    )
 
 saveRDS(bc_nested, here("tmp/bc_nested.rds"))
 ```
