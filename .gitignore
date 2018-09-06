@@ -2,7 +2,8 @@
 .Rhistory
 .RData
 .Ruserdata
-
+/tmp*
 /output*
 *.pdf
 *.png
+.DS_Store
