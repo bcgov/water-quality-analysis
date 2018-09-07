@@ -65,20 +65,23 @@ avg_censored <- function(x, censor, censored_val = c("left", "right"), stat = me
 
 plot_smk <- function(data, smk, yvar, datevar) {
   if (!inherits(smk, "htest")) 
-    stop("smk must be the output of smwrStats$seaken", 
+    stop("smk must be the output of smwrStats::seaken or EnvStats::KendallSeasonalTrendTest", 
          call. = FALSE)
   
   
-  slope <- smk$estimate[["slope"]] / 365
+  slope <- slope(smk) / 365
   
   # Calculate intercept from median of data
-  int <- smk$estimate[["median.data"]] - (smk$estimate[["median.time"]] * 
-    smk$estimate[["slope"]])
+  if (inherits(smk, "seaken")) {
+    int <- intercept(smk)
+  } else {
+    int <- smk_int_from_data(data, slope = slope)
+  }
   
   # Scale intercept for date scale
   int <- int - slope * min(as.numeric(data[[datevar]]))
   
-  p_val <- smk$p.value
+  p_val <- p_val(smk)
   sig <- p_val <= 0.05
   
   ggplot(data, aes(x = .data$Date, y = !!sym(yvar))) + 
@@ -112,3 +115,48 @@ month_complete <- function(x) {
     mutate(Date = as.Date(paste(year, month, "15", sep = "-"))) %>% 
     arrange(Date)
 }
+
+#' accessor functions for seasonal kendall results
+slope <- function(x) UseMethod("slope", x)
+slope.default <- function(x) stop("No slope method defined for class ", 
+                                  paste0("'", class(x), "'", collapse = ", "), 
+                                  call. = FALSE)
+slope.htest <- function(x) x$estimate[["slope"]]
+
+intercept <- function(x) UseMethod("intercept", x)
+intercept.default <- function(x) stop("No intercept method defined for class ", 
+                                  paste0("'", class(x), "'", collapse = ", "), 
+                                  call. = FALSE)
+intercept.seaken <- function(x) {
+  # calculate intercept using the (median of the data) - (median of the time * slope)
+  x$estimate[["median.data"]] - (x$estimate[["median.time"]] * 
+                                     x$estimate[["slope"]])
+}
+
+smk_int_from_data <- function(data, value_column = "month_avg", month_column = "month", slope) {
+  median(data[[value_column]], na.rm = TRUE) - 
+    (((nrow(data) / length(unique(data[[month_column]]))) / 2) * slope)
+}
+
+p_val <- function(x) UseMethod("p_val", x)
+p_val.default <- function(x) stop("No p_val method defined for class ", 
+                                  paste0("'", class(x), "'", collapse = ", "), 
+                                  call. = FALSE)
+p_val.htest <- function(x) {
+  if (inherits(x, "seaken")) {
+    return(x$p.value)
+  }
+  x$p.value["z (Trend)"]
+}
+
+het_p_val <- function(x) UseMethod("het_p_val", x)
+het_p_val.default <- function(x) stop("No het_p_val method defined for class ", 
+                                  paste0("'", class(x), "'", collapse = ", "), 
+                                  call. = FALSE)
+het_p_val.htest <- function(x) {
+  if (inherits(x, "seaken")) {
+    stop("No heterogeneity p-value for seaken models", call. = FALSE)
+  }
+  x$p.value["Chi-Square (Het)"]
+}
+
