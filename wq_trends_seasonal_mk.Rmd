@@ -132,21 +132,22 @@ monitoring network.
 
 The following data preparation steps were applied:
 
-- Data from 2004 on were retained (due to changes in detection limits - this can be changed)
-- Multiple readings from the same day were averaged (this was rare; only `r sum(bc_tidy$n > 1)` records had more than one daily reading))
+- Data from 2004 and later were used (due to changes in detection limits/instrumentation - this can be changed and warrants further discussion)
+- Multiple readings from the same day were averaged (this was rare; only `r sum(bc_tidy$n > 1)` out of `r nrow(bc_tidy)` records had more than one daily reading))
 - Values were aggregated to monthly medians; censored values were replaced with the detection limit. Literature suggests that this is not optimal as it biases any measure of central tendency upward (as the true value is less than the DL).  However, median is more robust to this bias than the mean. I intend to investigate better ways to treat censored data. When there were multiple readings in a month with different detection limits, only the records with the lowest detection limit were used.
 - Full records were created (one record for every month of every year of the time series). 
 - Only used records that were longer than 10 years and had readings up until at least 2014.
+- Records were not adjusted for river flow/levels. This decision was made so that we are reporting on real concentrations of water quality parameters, not on why they might be changing. This is in keeping with SoE's mandate of reporting on _what_ is happening, not necessarilly delving into the _why_.
 
-### TO DO (data preparation):
+### Data Preparation issues to address:
 
-- Check params with very high dailiy CV - especially `TEMPERATURE WATER` vs `TEMPERATURE WATER (FIELD)`
+- Check parameters with very high within-day variation - especially `TEMPERATURE WATER` vs `TEMPERATURE WATER (FIELD)`
 - Trim ends of time series when they are very sparse
 - Better deal with censored data?
 - Look at what earlier data (earlier than 2004) should be used
 
 ## Trend analysis
-- For each parameter at each station, performed a Seasonall Kendall test with Sen slope estimator using the `seaken` function in the [`smwrStats` R package](https://github.com/USGS-R/smwrStats). This performs a separate Mann Kendall for each month, and reports the median of all monthly Sen's slopes. The significance of the Seasonal Kendall is assessed using the overall Sk statistic, which is calculated by summing each season’s Kendall S statistic.
+- For each parameter at each station, we performed a Seasonall Kendall test with Sen slope estimator using the `seaken` function in the [`smwrStats` R package](https://github.com/USGS-R/smwrStats). This performs a separate Mann Kendall for each month, and reports the median of all monthly Sen's slopes. The significance of the Seasonal Kendall is assessed using the overall Sk statistic, which is calculated by summing each season's Kendall S statistic.
 
 ```{r results='asis'}
 station_results <- bc_nested %>%
