@@ -106,21 +106,23 @@ bc_nested <- bc_nested %>% mutate(
 bc_nested <- mutate(
   bc_nested, 
   sk = map(full_monthly, ~ {
-    seaken(.x$month_avg, 12)
+    EnvStats::kendallSeasonalTrendTest(.x$month_avg, season = .x$month, 
+                                       year = .x$year)
   }), 
-  p_val = map_dbl(sk, "p.value"), 
-  sig = p_val < 0.05,
-  slope = map_dbl(sk, list("estimate", "slope")), 
-  intercept = map_dbl(sk, list("estimate", "median.data")) - 
-    (map_dbl(sk, list("estimate", "median.time")) * slope), 
+  annual_slope = map_dbl(sk, slope), 
+  slope_p_val = map_dbl(sk, p_val), 
+  sig = slope_p_val < 0.05,
+  intercept = map2_dbl(full_monthly, annual_slope, 
+                      ~ smk_int_from_data(.x, slope = .y)), 
+  slope_het_pval = map_dbl(sk, possibly(het_p_val, otherwise = NA_real_)),
   smk_plot = pmap(
-    list(d = full_monthly, m = sk, s = SITE_NO, 
-         v = PARAM_SHORT_NAME), function(d, m, s, v) {
-           plot_smk(d, m, "month_avg", "Date") + 
-             labs(title = paste(s, v, sep = ": "), 
-                  x = "Date", y = "Value")
-           
-         })
+   list(d = full_monthly, m = sk, s = SITE_NO,
+        v = PARAM_SHORT_NAME), function(d, m, s, v) {
+          plot_smk(d, m, "month_avg", "Date") +
+            labs(title = paste(s, v, sep = ": "),
+                 x = "Date", y = "Value")
+
+        })
 )
 ```
 
@@ -142,7 +144,7 @@ The following data preparation steps were applied:
 ### Data Preparation issues to address:
 
 - Check parameters with very high within-day variation - especially `TEMPERATURE WATER` vs `TEMPERATURE WATER (FIELD)`
-- Trim ends of time series when they are very sparse
+- Trim ends of time series when they are very sparse (E.g., Sulphate at 'Englishman River at Hwy 19').
 - Better deal with censored data?
 - Look at what earlier data (earlier than 2004) should be used
 
@@ -151,7 +153,7 @@ The following data preparation steps were applied:
 
 ```{r results='asis'}
 station_results <- bc_nested %>%
-  select(SITE_NO, PARAM_SHORT_NAME, sk, p_val, sig, slope, intercept) %>% 
+  select(SITE_NO, PARAM_SHORT_NAME, sk, slope_p_val, sig, annual_slope, intercept) %>% 
   nest(-SITE_NO, .key = "results")
 
 i <- 1
@@ -176,7 +178,7 @@ for (s in station_results$SITE_NO) {
                             max_val, min_val)), 
               by = c("SITE_NO", "PARAM_SHORT_NAME")) %>% 
     mutate(slope_disp = ifelse(sig, 
-                               format(slope, trim = TRUE, digits = 1, 
+                               format(annual_slope, trim = TRUE, digits = 1, 
                                       scientific = 1, drop0trailing = TRUE), 
                                NA_character_))
   
@@ -194,9 +196,9 @@ for (s in station_results$SITE_NO) {
                  date_labels = "%Y") +
     geom_abline(
       data = res, 
-      aes(slope = slope / 365, 
+      aes(slope = annual_slope / 365, 
           intercept = intercept - 
-            ((slope / 365) * as.numeric(as.Date("2004-01-15"))), 
+            ((annual_slope / 365) * as.numeric(as.Date("2004-01-15"))), 
           colour = sig)
     ) +
     geom_label(data = res, x = max(d$Date), 
