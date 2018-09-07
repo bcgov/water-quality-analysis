@@ -17,9 +17,9 @@ library(wqbc)
 library(readr)
 library(here)
 library(feather)
+library(EnvStats)
 library(purrr)
-library(smwrStats)
-library(smwrGraphs)
+library(kableExtra)
 source(here::here("R/functions.R"))
 
 knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
@@ -106,7 +106,7 @@ bc_nested <- bc_nested %>% mutate(
 bc_nested <- mutate(
   bc_nested, 
   sk = map(full_monthly, ~ {
-    EnvStats::kendallSeasonalTrendTest(.x$month_avg, season = .x$month, 
+    kendallSeasonalTrendTest(.x$month_avg, season = .x$month, 
                                        year = .x$year)
   }), 
   annual_slope = map_dbl(sk, slope), 
@@ -229,9 +229,31 @@ for (s in station_results$SITE_NO) {
 ## TODO: check heterogeneity of slopes. Chi-Sq statitstic reported in `EnvStats::kendallSeasonalTrendTest`
 ```
 
-### Summary of data for each parameter at all sites:
+## Summary of data and results for each parameter at all sites:
 
-```{r}
-knitr::kable(bc_site_var_summary, booktabs = TRUE)
+```{r, results='asis'}
+reporting_table <- left_join(
+  bc_site_var_summary %>% 
+    mutate(`% censored` = round((n_cens / n_obs) * 100, 1)) %>% 
+    select(-nyears, -n_obs, -n_cens), 
+  bc_nested %>%
+    select(SITE_NO, PARAM_SHORT_NAME, annual_slope, slope_p_val), 
+  by = c("SITE_NO", "PARAM_SHORT_NAME")
+) %>% 
+  mutate(PARAM_SHORT_NAME = tools::toTitleCase(tolower(PARAM_SHORT_NAME)), 
+         annual_slope = round(annual_slope, 3), 
+         slope_p_val = round(slope_p_val, 3)) %>% 
+  rename(Site = SITE_NO, Parameter = PARAM_SHORT_NAME, 
+         `Slope (Units/yr)` = annual_slope, p = slope_p_val)
+
+split_tbl <- split(reporting_table, reporting_table$Site)
+
+imap(split_tbl, ~ {
+  cat("### ")
+  .x %>% select(-Site) %>% 
+  kable(booktabs = TRUE, longtable = TRUE, caption = .y) %>% 
+  kable_styling(latex_options = c("repeat_header"))
+})
+
 ```
 
