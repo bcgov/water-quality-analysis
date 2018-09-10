@@ -96,7 +96,7 @@ A total of `r nrow(wq_params)` parameters were selected to be tested at all site
 
 ```{r}
 kable(wq_params, booktabs = TRUE, longtable = TRUE, 
-      caption = "List of water quality parameters tested for trends") %>% 
+      caption = "List of parameters tested for trends") %>% 
   kable_styling(latex_options = c("striped", "repeat_header")) %>% 
   column_spec(3, width = "11em") %>% 
   column_spec(4, width = "14em")
@@ -145,7 +145,7 @@ bc_nested <- mutate(
 )
 ```
 
-## Summary of results
+## Brief summary of results
 
 Of the `r nrow(bc_nested)` tests performed, `r nrow(bc_nested[bc_nested$sig, ])` showed 
 statistically significant trends. The parameter that showed sigicant decreases at the most sites
@@ -236,7 +236,10 @@ for (s in station_results$SITE_NO) {
          colour = "Significant Trend", 
          alpha = "Censored")
   print(p)
-  # Add newlines between every second chart
+  # Add newlines between every second chart so they aren't crunched together
+  # when two to a page.
+  # If first chart appears on its own page, use "if (i %% 2 == 0)", if first two charts 
+  # appear one a single page, use "if (i %% 2 != 0)"
   if (i %% 2 != 0) {
     cat("\\newline")
     cat("\\newline")
