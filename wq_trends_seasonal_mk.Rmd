@@ -2,10 +2,18 @@
 title: "Trends in Water Quality in BC Rivers (DRAFT 1)"
 author: "Andy Teucher"
 date: "`r Sys.Date()`"
-output: pdf_document
+output: 
+  pdf_document: 
+    toc: yes
 params: 
   refresh_data: FALSE
 ---
+
+## Introduction
+
+This presents draft initial results of seasonal Mann-Kendall trend tests of 
+selected parameters at water quality monitoring stations from the 
+Federal-Provincial water quality monitoring network.
 
 ```{r setup, include=FALSE}
 library(canwqdata)
@@ -23,6 +31,7 @@ library(kableExtra)
 source(here::here("R/functions.R"))
 
 knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+options(knitr.kable.NA = '')
 
 options(wqbc.messages = FALSE)
 ```
@@ -83,6 +92,16 @@ bc_tidy <- inner_join(bc_tidy, bc_site_var_summary,
 # TODO: trim ends of ts when very sparse data
 ```
 
+A total of `r nrow(wq_params)` parameters were selected to be tested at all sites:
+
+```{r}
+kable(wq_params, booktabs = TRUE, longtable = TRUE, 
+      caption = "List of water quality parameters tested for trends") %>% 
+  kable_styling(latex_options = c("striped", "repeat_header")) %>% 
+  column_spec(3, width = "11em") %>% 
+  column_spec(4, width = "14em")
+```
+
 
 ```{r clean-make-monthly}
 
@@ -126,9 +145,12 @@ bc_nested <- mutate(
 )
 ```
 
-Inital results of seasonal Mann-Kendall trend tests of selected parameters at 
-water quality monitoring stations from the Federal-Provincial water quality 
-monitoring network.
+## Summary of results
+
+Of the `r nrow(bc_nested)` tests performed, `r nrow(bc_nested[bc_nested$sig, ])` showed 
+statistically significant trends. The parameter that showed sigicant decreases at the most sites
+was `r names(which.max(table(bc_nested[bc_nested$sig & bc_nested$annual_slope < 0, "PARAM_SHORT_NAME"])))` (`r max(table(bc_nested[bc_nested$sig & bc_nested$annual_slope < 0, "PARAM_SHORT_NAME"]))` sites). The parameter that showed sigicant increases at the most sites
+was `r names(which.max(table(bc_nested[bc_nested$sig & bc_nested$annual_slope > 0, "PARAM_SHORT_NAME"])))` (`r max(table(bc_nested[bc_nested$sig & bc_nested$annual_slope > 0, "PARAM_SHORT_NAME"]))` sites). The site with the highest number of parameters that showed statistically significant trends was `r names(which.max(table(bc_nested[bc_nested$sig, "SITE_NO"])))` (`r  max(table(bc_nested[bc_nested$sig, "SITE_NO"]))` parameters).
 
 ## Data preparation
 
@@ -182,10 +204,7 @@ for (s in station_results$SITE_NO) {
                                       scientific = 1, drop0trailing = TRUE), 
                                NA_character_))
   
-  site_name <- tools::toTitleCase(tolower(
-    bc_stations[bc_stations$SITE_NO == s, "SITE_NAME"]
-  ))
-  
+  site_name <- to_titlecase(bc_stations[bc_stations$SITE_NO == s, "SITE_NAME"])
   
   p <- ggplot(d, aes(x = Date, y = month_avg)) + 
     # geom_step(aes(y = detection_limit)) + 
@@ -235,12 +254,12 @@ for (s in station_results$SITE_NO) {
 reporting_table <- left_join(
   bc_site_var_summary %>% 
     mutate(`% censored` = round((n_cens / n_obs) * 100, 1)) %>% 
-    select(-nyears, -n_obs, -n_cens), 
+    select(-n_cens), 
   bc_nested %>%
     select(SITE_NO, PARAM_SHORT_NAME, annual_slope, slope_p_val), 
   by = c("SITE_NO", "PARAM_SHORT_NAME")
 ) %>% 
-  mutate(PARAM_SHORT_NAME = tools::toTitleCase(tolower(PARAM_SHORT_NAME)), 
+  mutate(PARAM_SHORT_NAME = to_titlecase(PARAM_SHORT_NAME), 
          annual_slope = round(annual_slope, 3), 
          slope_p_val = round(slope_p_val, 3)) %>% 
   rename(Site = SITE_NO, Parameter = PARAM_SHORT_NAME, 
@@ -248,12 +267,21 @@ reporting_table <- left_join(
 
 split_tbl <- split(reporting_table, reporting_table$Site)
 
-imap(split_tbl, ~ {
-  cat("### ")
-  .x %>% select(-Site) %>% 
-  kable(booktabs = TRUE, longtable = TRUE, caption = .y) %>% 
-  kable_styling(latex_options = c("repeat_header"))
-})
+
+for (i in seq_along(split_tbl)) {
+  .x <- split_tbl[[i]]
+  if (!nrow(.x)) break()
+  
+  .y <- names(split_tbl)[i]
+  
+  site_name <- to_titlecase(bc_stations[bc_stations$SITE_NO == .y, "SITE_NAME"])
+  
+  .x %>% 
+    select(-Site) %>% 
+    kable(booktabs = TRUE, longtable = TRUE, caption = paste0(site_name, " (", .y, ")")) %>% 
+    kable_styling(latex_options = c("striped", "repeat_header")) %>% 
+    print()
+}
 
 ```
 
