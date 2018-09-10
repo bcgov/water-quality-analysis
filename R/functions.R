@@ -160,3 +160,7 @@ het_p_val.htest <- function(x) {
   x$p.value["Chi-Square (Het)"]
 }
 
+to_titlecase <- function(x) {
+  tools::toTitleCase(tolower(x))  
+}
+
