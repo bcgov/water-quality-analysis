@@ -176,7 +176,7 @@ The following data preparation steps were applied:
 - Confirm censored data approach
 
 ## Trend analysis
-- For each parameter at each station, we performed a Seasonal Kendall test with Sen slope estimator using the `seaken` function in the [`smwrStats` R package](https://github.com/USGS-R/smwrStats). This performs a separate Mann Kendall for each month, and reports the median of all monthly Sen's slopes. The significance of the Seasonal Kendall is assessed using the overall Sk statistic, which is calculated by summing each season's Kendall S statistic.
+- For each parameter at each station, we performed a Seasonal Kendall test with Sen slope estimator using the `kendallSeasonalTrendTest` function in the [`EnvStats` R package](https://cran.r-project.org/package=EnvStats). This performs a separate Mann Kendall for each month, and reports the median of all monthly Sen's slopes. The significance of the Seasonal Kendall is assessed using the overall Sk statistic, which is calculated by summing each season's Kendall S statistic.
 
 ```{r results='asis'}
 station_results <- bc_nested %>%
