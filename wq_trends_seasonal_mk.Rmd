@@ -133,6 +133,11 @@ bc_nested <- mutate(
   sig = slope_p_val < 0.05,
   intercept = map2_dbl(full_monthly, annual_slope, 
                       ~ smk_int_from_data(.x, slope = .y)), 
+  ## Convert to average annual percent change: 100 * (Yend/Ystart - 1) / n_years.
+  ann_percent_change = 100 * 
+    ((((annual_slope * nyears + intercept) / 
+         intercept) - 1) / 
+       nyears),
   slope_het_pval = map_dbl(sk, possibly(het_p_val, otherwise = NA_real_)),
   smk_plot = pmap(
    list(d = full_monthly, m = sk, s = SITE_NO,
@@ -175,7 +180,7 @@ The following data preparation steps were applied:
 
 ```{r results='asis'}
 station_results <- bc_nested %>%
-  select(SITE_NO, PARAM_SHORT_NAME, sk, slope_p_val, sig, annual_slope, intercept) %>% 
+  select(SITE_NO, PARAM_SHORT_NAME, sk, slope_p_val, sig, annual_slope, ann_percent_change, intercept) %>% 
   nest(-SITE_NO, .key = "results")
 
 i <- 1
@@ -200,9 +205,8 @@ for (s in station_results$SITE_NO) {
                             max_val, min_val)), 
               by = c("SITE_NO", "PARAM_SHORT_NAME")) %>% 
     mutate(slope_disp = ifelse(sig, 
-                               format(annual_slope, trim = TRUE, digits = 1, 
-                                      scientific = 1, drop0trailing = TRUE), 
-                               NA_character_))
+                               round(ann_percent_change, digits = 1), 
+                               ""))
   
   site_name <- to_titlecase(bc_stations[bc_stations$SITE_NO == s, "SITE_NAME"])
   
@@ -220,7 +224,7 @@ for (s in station_results$SITE_NO) {
             ((annual_slope / 365) * as.numeric(as.Date("2004-01-15"))), 
           colour = ifelse(sign(annual_slope) == 1, "Increasing", "Decreasing"))
     ) +
-    geom_label(data = res, x = max(d$Date), 
+    geom_label(data = res[res$sig, ], x = max(d$Date), 
               aes(y = label_y, label = slope_disp), 
               vjust = "inward", hjust = "inward", size = 2, 
               label.padding = unit(0.1, "lines")) + 
@@ -231,7 +235,7 @@ for (s in station_results$SITE_NO) {
           axis.text = element_text(size = 5)) + 
     labs(title = site_name, 
          subtitle = sprintf("Site No: %s", s), 
-         caption = "Lines illustrating statistically significant trends are shown on each graph panel; slopes (in % change/year) are given in the panel headings",
+         caption = "Lines illustrating statistically significant trends are shown on each graph panel;slopes (in % change/year) are given in the panel headings",
          x = "Date", y = "Value", 
          colour = "Direction of Trend", 
          alpha = "Censored")
@@ -259,14 +263,14 @@ reporting_table <- left_join(
     mutate(`% censored` = round((n_cens / n_obs) * 100, 1)) %>% 
     select(-n_cens), 
   bc_nested %>%
-    select(SITE_NO, PARAM_SHORT_NAME, annual_slope, slope_p_val), 
+    select(SITE_NO, PARAM_SHORT_NAME, ann_percent_change, slope_p_val), 
   by = c("SITE_NO", "PARAM_SHORT_NAME")
 ) %>% 
   mutate(PARAM_SHORT_NAME = to_titlecase(PARAM_SHORT_NAME), 
-         annual_slope = round(annual_slope, 3), 
+         ann_percent_change = round(ann_percent_change, 2), 
          slope_p_val = round(slope_p_val, 3)) %>% 
   rename(Site = SITE_NO, Parameter = PARAM_SHORT_NAME, 
-         `Slope (Units/yr)` = annual_slope, p = slope_p_val)
+         `Annual % change` = ann_percent_change, p = slope_p_val)
 
 split_tbl <- split(reporting_table, reporting_table$Site)
 
