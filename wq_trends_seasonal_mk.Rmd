@@ -113,7 +113,8 @@ bc_nested <- tidyr::nest(bc_tidy, -PEARSEDA, -SITE_NO, -PARAM_SHORT_NAME,
 
 bc_nested <- bc_nested %>% mutate(
   clean_data = map(data, ~ {
-    clean_wqdata(.x) %>% 
+    clean_wqdata(.x, 
+                 delete_outliers = TRUE) %>% 
       mutate(censored = make_censor(ResultLetter), 
              month = month(Date, label = FALSE), 
              year = year(Date), 
