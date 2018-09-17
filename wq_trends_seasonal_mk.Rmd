@@ -63,23 +63,24 @@ wq_params <- read_csv(here::here("data/parameters.csv"))
 # TODO - check wq_params with very high CV - especially TEMPERATURE WATER vs 
 # TEMPERATURE WATER (FIELD)
 
-bc_tidy2 <- tidy_ec_data(bc_data, cols = "PEARSEDA", mdl_action = "mdl") %>% 
+bc_tidy <- tidy_ec_data(bc_data, cols = "PEARSEDA", mdl_action = "mdl") %>% 
   add_shortnames() %>% 
   inner_join(wq_params %>% 
                select(Category, PARAM_SHORT_NAME = Variable_short_name)) %>% 
   filter(year(DateTime) > 2003) %>% 
   group_by(SITE_NO, PARAM_SHORT_NAME, DateTime, Units, DetectionLimit, 
-           ResultLetter, PEARSEDA) %>% 
+           ResultLetter, PEARSEDA, Category) %>% 
   summarise(sd = sd(Value, na.rm = TRUE), 
             Value = mean(Value, na.rm = TRUE), 
             cv = (sd / Value) * 100,
             n = n()) %>% 
   ungroup() %>% 
-  mutate(year = year(DateTime), 
+  mutate(PARAM_SHORT_NAME = fct_reorder(PARAM_SHORT_NAME, as.numeric(as.factor(Category))),
+         year = year(DateTime), 
          month = month(DateTime), 
          censored = make_censor(ResultLetter))
 
-bc_site_var_summary <- bc_tidy %>% group_by(SITE_NO, PARAM_SHORT_NAME) %>% 
+bc_site_var_summary <- bc_tidy %>% group_by(SITE_NO, PARAM_SHORT_NAME, Category) %>% 
   summarize(min_year = min(year, na.rm = TRUE), 
             max_year = max(year, na.rm = TRUE), 
             nyears = max_year - min_year + 1,
@@ -89,7 +90,7 @@ bc_site_var_summary <- bc_tidy %>% group_by(SITE_NO, PARAM_SHORT_NAME) %>%
   ungroup()
 
 bc_tidy <- inner_join(bc_tidy, bc_site_var_summary, 
-                      by = c("SITE_NO", "PARAM_SHORT_NAME"))
+                      by = c("SITE_NO", "PARAM_SHORT_NAME", "Category"))
 
 # TODO: trim ends of ts when very sparse data
 ```
@@ -108,7 +109,7 @@ kable(wq_params, booktabs = TRUE, longtable = TRUE,
 ```{r clean-make-monthly}
 
 bc_nested <- tidyr::nest(bc_tidy, -PEARSEDA, -SITE_NO, -PARAM_SHORT_NAME, 
-                         -min_year, -max_year, -nyears, -n_obs, -n_cens)
+                         -Category, -min_year, -max_year, -nyears, -n_obs, -n_cens)
 
 bc_nested <- bc_nested %>% mutate(
   clean_data = map(data, ~ {
@@ -182,17 +183,17 @@ The following data preparation steps were applied:
 
 ```{r results='asis'}
 station_results <- bc_nested %>%
-  select(SITE_NO, PARAM_SHORT_NAME, sk, slope_p_val, sig, annual_slope, ann_percent_change, intercept) %>% 
+  select(SITE_NO, PARAM_SHORT_NAME, 
+         sk, slope_p_val, sig, annual_slope, ann_percent_change, intercept) %>% 
   nest(-SITE_NO, .key = "results")
 
 i <- 1
 for (s in station_results$SITE_NO) {
   d <- bc_nested %>% filter(SITE_NO == s) %>% 
-    select(SITE_NO, PARAM_SHORT_NAME, full_monthly) %>% 
+    select(SITE_NO, PARAM_SHORT_NAME, Category, full_monthly) %>% 
     unnest() %>% 
     mutate(censored = case_when(censored ~ "censored", 
-                                TRUE ~ "not censored"), 
-           PARAM_SHORT_NAME = fct_reorder(PARAM_SHORT_NAME, ))
+                                TRUE ~ "not censored"))
   
   res <- station_results %>% 
     filter(SITE_NO == s) %>% 
@@ -203,12 +204,14 @@ for (s in station_results$SITE_NO) {
                 summarize(max_val = max(month_avg), 
                           min_val = min(month_avg),
                           last_val = last(month_avg), 
-                          label_y = ifelse(
-                            abs(max_val - last_val) > abs(min_val - last_val), 
-                            max_val, min_val)), 
+                          label_y = scales::expand_range(range(month_avg), 0.3)[2]),
+                            # ifelse(
+                            # abs(max_val - last_val) > abs(min_val - last_val), 
+                            # max_val, min_val)), 
               by = c("SITE_NO", "PARAM_SHORT_NAME")) %>% 
     mutate(slope_disp = ifelse(sig, 
-                               round(ann_percent_change, digits = 1), 
+                               format(round(ann_percent_change, digits = 1), 
+                                      nsmall = 1), 
                                ""))
   
   site_name <- to_titlecase(bc_stations[bc_stations$SITE_NO == s, "SITE_NAME"])
@@ -216,7 +219,7 @@ for (s in station_results$SITE_NO) {
   p <- ggplot(d, aes(x = Date, y = month_avg)) + 
     # geom_step(aes(y = detection_limit)) + 
     geom_point(size = 0.3, aes(alpha = censored), colour = "grey30") +
-    scale_alpha_manual(values = c(0.5, 1)) + 
+    scale_alpha_manual(values = c(0.4, 0.8)) + 
     scale_x_date(breaks = c(min(d$Date), max(d$Date)), 
                  date_minor_breaks = "2 years",
                  date_labels = "%Y") +
@@ -227,10 +230,11 @@ for (s in station_results$SITE_NO) {
             ((annual_slope / 365) * as.numeric(as.Date("2004-01-15"))), 
           colour = ifelse(sign(annual_slope) == 1, "Increasing", "Decreasing"))
     ) +
-    geom_label(data = res[res$sig, ], x = max(d$Date), 
-              aes(y = label_y, label = slope_disp), 
-              vjust = "inward", hjust = "inward", size = 2, 
-              label.padding = unit(0.1, "lines")) + 
+    geom_text(data = res[res$sig, ], x = max(d$Date), 
+              aes(y = label_y, label = paste0(slope_disp, "%"), 
+                  colour = ifelse(sign(annual_slope) == 1, 
+                                  "Increasing", "Decreasing")), 
+              vjust = 1, hjust = "inward", size = 2, show.legend = FALSE) + 
     facet_wrap(vars(PARAM_SHORT_NAME), scales = "free_y", 
                labeller = label_wrap_gen(width = 15)) + 
     theme_minimal(base_size = 9) + 
@@ -238,7 +242,7 @@ for (s in station_results$SITE_NO) {
           axis.text = element_text(size = 5)) + 
     labs(title = site_name, 
          subtitle = sprintf("Site No: %s", s), 
-         caption = "Lines illustrating statistically significant trends are shown on each graph panel;\nslopes (in % change/year) are given in the panel headings",
+         caption = "Lines illustrating statistically significant trends are shown on each graph panel.\nsValues of significant trends (in average % per year) are given",
          x = "Date", y = "Value", 
          colour = "Direction of Trend", 
          alpha = "Censored")
