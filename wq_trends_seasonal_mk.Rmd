@@ -276,7 +276,11 @@ reporting_table <- left_join(
            n_outliers), 
   by = c("SITE_NO", "PARAM_SHORT_NAME")
 ) %>% 
-  mutate(PARAM_SHORT_NAME = to_titlecase(PARAM_SHORT_NAME), 
+  mutate(PARAM_SHORT_NAME = case_when(
+           grepl("^HARDNESS", PARAM_SHORT_NAME) ~ "Hardness Total", 
+           PARAM_SHORT_NAME == "PH" ~ "pH",
+           TRUE ~ to_titlecase(PARAM_SHORT_NAME)
+         ),
          ann_percent_change = round(ann_percent_change, 2), 
          slope_p_val = round(slope_p_val, 3), 
          Years = paste(min_year, max_year, sep = "-"))
@@ -292,12 +296,12 @@ for (i in seq_along(split_tbl)) {
   site_name <- to_titlecase(bc_stations[bc_stations$SITE_NO == .y, "SITE_NAME"])
   
   .x %>% 
-    select(PARAM_SHORT_NAME, Category, Years, n_obs, percent_censored, 
-           ann_percent_change, slope_p_val, n_outliers) %>% 
+    select(Category, PARAM_SHORT_NAME, Years, n_obs, percent_censored, 
+           n_outliers, ann_percent_change, slope_p_val) %>% 
     kable(booktabs = TRUE, longtable = TRUE, 
           caption = paste0(site_name, " (", .y, ")"), 
-          col.names = c("Parameter", "Category", "Years", "N obs", 
-                        "\\% cens", "Ann \\% $\\Delta$", "p val", "outliers"), 
+          col.names = c("Category", "Parameter", "Years", "N", 
+                        "\\% Censored", "Outliers", "Annual \\% $\\Delta$", "p-value"), 
           escape = FALSE) %>% # Use esacape=F and manually escape special characters to make greek letter Delta work
     kable_styling(latex_options = c("striped", "repeat_header")) %>% 
     print()
