@@ -121,6 +121,7 @@ bc_nested <- bc_nested %>% mutate(
              Time = as.numeric(Date) / 1000) %>% 
       arrange(Date)
   }), 
+  n_outliers = map_int(clean_data, attr, "wq_n_outliers"),
   full_monthly = map(clean_data, month_complete)
 )
 ```
@@ -164,7 +165,6 @@ was `r names(which.max(table(bc_nested[bc_nested$sig & bc_nested$annual_slope > 
 ## Data preparation
 
 The following data preparation steps were applied:
-
 
 - Data from 2004 and later were used (due to changes in detection limits/instrumentation)
 - Extreme outliers (> 10 Standard Deviations from the mean) were removed.
@@ -269,19 +269,19 @@ for (s in station_results$SITE_NO) {
 ```{r, results='asis'}
 reporting_table <- left_join(
   bc_site_var_summary %>% 
-    mutate(`% censored` = round((n_cens / n_obs) * 100, 1)) %>% 
+    mutate(percent_censored = round((n_cens / n_obs) * 100, 1)) %>% 
     select(-n_cens), 
   bc_nested %>%
-    select(SITE_NO, PARAM_SHORT_NAME, ann_percent_change, slope_p_val), 
+    select(SITE_NO, PARAM_SHORT_NAME, ann_percent_change, slope_p_val,
+           n_outliers), 
   by = c("SITE_NO", "PARAM_SHORT_NAME")
 ) %>% 
   mutate(PARAM_SHORT_NAME = to_titlecase(PARAM_SHORT_NAME), 
          ann_percent_change = round(ann_percent_change, 2), 
-         slope_p_val = round(slope_p_val, 3)) %>% 
-  rename(Site = SITE_NO, Parameter = PARAM_SHORT_NAME, 
-         `Annual % change` = ann_percent_change, p = slope_p_val)
+         slope_p_val = round(slope_p_val, 3), 
+         Years = paste(min_year, max_year, sep = "-"))
 
-split_tbl <- split(reporting_table, reporting_table$Site)
+split_tbl <- split(reporting_table, reporting_table$SITE_NO)
 
 for (i in seq_along(split_tbl)) {
   .x <- split_tbl[[i]]
@@ -292,8 +292,13 @@ for (i in seq_along(split_tbl)) {
   site_name <- to_titlecase(bc_stations[bc_stations$SITE_NO == .y, "SITE_NAME"])
   
   .x %>% 
-    select(-Site) %>% 
-    kable(booktabs = TRUE, longtable = TRUE, caption = paste0(site_name, " (", .y, ")")) %>% 
+    select(PARAM_SHORT_NAME, Category, Years, n_obs, percent_censored, 
+           ann_percent_change, slope_p_val, n_outliers) %>% 
+    kable(booktabs = TRUE, longtable = TRUE, 
+          caption = paste0(site_name, " (", .y, ")"), 
+          col.names = c("Parameter", "Category", "Years", "N obs", 
+                        "\\% cens", "Ann \\% $\\Delta$", "p val", "outliers"), 
+          escape = FALSE) %>% # Use esacape=F and manually escape special characters to make greek letter Delta work
     kable_styling(latex_options = c("striped", "repeat_header")) %>% 
     print()
 }
