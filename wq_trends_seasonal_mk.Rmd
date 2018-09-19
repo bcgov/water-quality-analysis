@@ -301,8 +301,11 @@ for (i in seq_along(split_tbl)) {
     kable(booktabs = TRUE, longtable = TRUE, 
           caption = paste0(site_name, " (", .y, ")"), 
           col.names = c("Category", "Parameter", "Years", "N", 
-                        "\\% Censored", "Outliers", "Annual \\% $\\Delta$", "p-value"), 
-          escape = FALSE) %>% # Use esacape=F and manually escape special characters to make greek letter Delta work
+                        "\\% Censored", "Outliers", "Annual \\% $\\Delta$",
+                        "p-value"), 
+          # Use esacape=F and manually escape special characters to make 
+          # greek letter Delta work
+          escape = FALSE) %>% 
     kable_styling(latex_options = c("striped", "repeat_header")) %>% 
     print()
 }
