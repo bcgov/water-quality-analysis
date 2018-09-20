@@ -22,7 +22,7 @@ library(tidyr)
 library(ggplot2)
 library(forcats)
 library(lubridate)
-library(wqbc)
+library(wqbc) # install_github("bcgov/wqbc", ref = "develop")
 library(readr)
 library(here)
 library(feather)
@@ -78,6 +78,7 @@ bc_tidy <- tidy_ec_data(bc_data, cols = "PEARSEDA", mdl_action = "mdl") %>%
   mutate(PARAM_SHORT_NAME = fct_reorder(PARAM_SHORT_NAME, as.numeric(as.factor(Category))),
          year = year(DateTime), 
          month = month(DateTime), 
+         season = as.integer(cut(month, breaks = 4)),
          censored = make_censor(ResultLetter))
 
 bc_site_var_summary <- bc_tidy %>% group_by(SITE_NO, PARAM_SHORT_NAME, Category) %>% 
@@ -85,12 +86,17 @@ bc_site_var_summary <- bc_tidy %>% group_by(SITE_NO, PARAM_SHORT_NAME, Category)
             max_year = max(year, na.rm = TRUE), 
             nyears = max_year - min_year + 1,
             n_obs = n(),
-            n_cens = sum(censored != "none")) %>% 
+            n_cens = sum(censored != "none"), 
+            percent_censored = round((n_cens / n_obs) * 100, 1)) %>% 
   filter(max_year >= 2013, nyears >= 10) %>% 
   ungroup()
 
 bc_tidy <- inner_join(bc_tidy, bc_site_var_summary, 
                       by = c("SITE_NO", "PARAM_SHORT_NAME", "Category"))
+
+bc_nested <- tidyr::nest(bc_tidy, -PEARSEDA, -SITE_NO, -PARAM_SHORT_NAME, 
+                         -Category, -min_year, -max_year, -nyears, -n_obs, 
+                         -n_cens, -percent_censored)
 
 # TODO: trim ends of ts when very sparse data
 ```
@@ -108,12 +114,13 @@ kable(wq_params, booktabs = TRUE, longtable = TRUE,
 
 ```{r clean-make-monthly}
 
-bc_nested <- tidyr::nest(bc_tidy, -PEARSEDA, -SITE_NO, -PARAM_SHORT_NAME, 
-                         -Category, -min_year, -max_year, -nyears, -n_obs, -n_cens)
-
-bc_nested <- bc_nested %>% mutate(
+bc_nested <- bc_nested %>% 
+  # don't include site/parameters with > 50% censored
+  filter(percent_censored < 50) %>% 
+  mutate(
   clean_data = map(data, ~ {
-    clean_wqdata(.x, 
+    # remove outliers > 6 sds from seasonal mean
+    clean_wqdata(.x, sds = 6, by = "season", outlier_method = "sd",
                  delete_outliers = TRUE) %>% 
       mutate(censored = make_censor(ResultLetter), 
              month = month(Date, label = FALSE), 
@@ -167,7 +174,8 @@ was `r names(which.max(table(bc_nested[bc_nested$sig & bc_nested$annual_slope > 
 The following data preparation steps were applied:
 
 - Data from 2004 and later were used (due to changes in detection limits/instrumentation)
-- Extreme outliers (> 10 Standard Deviations from the mean) were removed.
+- Extreme outliers (> 6 Standard Deviations from the seasonal mean) were removed.
+- Site/parameter combinations with > 50% censored data were removed.
 - Multiple readings from the same day were averaged (this was rare; only `r sum(bc_tidy$n > 1)` out of `r nrow(bc_tidy)` records had more than one daily reading)
 - Values were aggregated to monthly medians; censored values were replaced with the detection limit. Literature suggests that this is not optimal as it biases any measure of central tendency upward (as the true value is less than the DL).  However, median is more robust to this bias than the mean. I intend to investigate better ways to treat censored data. When there were multiple readings in a month with different detection limits, only the records with the lowest detection limit were used.
 - Full records were created (one record for every month of every year of the time series). 
@@ -194,7 +202,7 @@ for (s in station_results$SITE_NO) {
   d <- bc_nested %>% filter(SITE_NO == s) %>% 
     select(SITE_NO, PARAM_SHORT_NAME, Category, full_monthly) %>% 
     unnest() %>% 
-    mutate(censored = case_when(censored ~ "censored", 
+    mutate(censored = case_when(censored != "none" ~ "censored", 
                                 TRUE ~ "not censored"))
   
   res <- station_results %>% 
@@ -220,7 +228,7 @@ for (s in station_results$SITE_NO) {
   
   p <- ggplot(d, aes(x = Date, y = month_avg)) + 
     # geom_step(aes(y = detection_limit)) + 
-    geom_point(size = 0.3, aes(alpha = censored), colour = "grey30") +
+    geom_point(aes(alpha = censored), colour = "grey30", size = 0.4) +
     scale_alpha_manual(values = c(0.4, 0.8)) + 
     scale_x_date(breaks = c(min(d$Date), max(d$Date)), 
                  date_minor_breaks = "2 years",
@@ -237,6 +245,8 @@ for (s in station_results$SITE_NO) {
                   colour = ifelse(sign(annual_slope) == 1, 
                                   "Increasing", "Decreasing")), 
               vjust = 1, hjust = "inward", size = 2, show.legend = FALSE) + 
+    scale_colour_manual(values = c("Increasing" = "darkorange2", 
+                                   "Decreasing" = "dodgerblue2")) + 
     facet_wrap(vars(PARAM_SHORT_NAME), scales = "free_y", 
                labeller = label_wrap_gen(width = 15)) + 
     theme_minimal(base_size = 9) + 
@@ -244,7 +254,7 @@ for (s in station_results$SITE_NO) {
           axis.text = element_text(size = 5)) + 
     labs(title = site_name, 
          subtitle = sprintf("Site No: %s", s), 
-         caption = "Lines illustrating statistically significant trends are shown on each graph panel.\nsValues of significant trends (in average % per year) are given",
+         caption = "Lines illustrating statistically significant trends are shown on each graph panel.\nsValues of significant trends (in average % per year) are shown",
          x = "Date", y = "Value", 
          colour = "Direction of Trend", 
          alpha = "Censored")
@@ -269,7 +279,6 @@ for (s in station_results$SITE_NO) {
 ```{r, results='asis'}
 reporting_table <- left_join(
   bc_site_var_summary %>% 
-    mutate(percent_censored = round((n_cens / n_obs) * 100, 1)) %>% 
     select(-n_cens), 
   bc_nested %>%
     select(SITE_NO, PARAM_SHORT_NAME, ann_percent_change, slope_p_val,
