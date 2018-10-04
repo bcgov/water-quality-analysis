@@ -1,8 +1,6 @@
 ---
 pagetitle: "Water Quality Trends in B.C."
-output:
-  html_document:
-    css: "leaflet_map.css"
+output: html_document
 ---
 
 ```{r, echo=FALSE, warning=FALSE, message=FALSE, }
@@ -55,33 +53,8 @@ bc_results <- bc_nested %>%
 pal <- colorNumeric("viridis", domain = range(bc_results$percent_changing), 
                     reverse = TRUE)
 
-bc_extent <- bcmaps::bc_bbox("raster", 4326)
-
-add_bc_home_button <- function(map) {
-  bc_simp <- rmapshaper::ms_simplify(sf::st_geometry(bcmaps::bc_bound()), 0.02, 
-                                     explode = TRUE, keep_shapes = FALSE)
-  
-  bc_svg <- svglite::stringSVG(plot(bc_simp, col = "black"), height = 0.5, width = 0.5, 
-                               pointsize = 0.5, standalone = TRUE)
-  
-  addEasyButton(map, easyButton(
-    htmltools::img(src = paste0("data:image/svg+xml;base64,", 
-                                base64enc::base64encode(charToRaw(bc_svg)))), 
-    onClick = JS("function(btn, map) { 
-                     map.closePopup();
-                     map.setView({lon: -126.5, lat: 54.5}, 5);
-                     // Close labels - they stay stuck open on mobile
-                     map.eachLayer(function (layer) {
-                         if (layer instanceof L.Polygon) {
-                           layer.label.close();
-                         }
-                     });
-                  }")
-  ))
-}
-
 leaflet(bc_results, width = "900px", height = "700px") %>% 
-  setView(lng = -126.5, lat = 54.5, zoom = 5) %>% 
+  set_bc_view() %>% 
   addProviderTiles(providers$OpenStreetMap) %>% 
   addCircleMarkers(lng = ~LONGITUDE, lat = ~LATITUDE, 
                    color = ~pal(percent_changing),
@@ -89,7 +62,7 @@ leaflet(bc_results, width = "900px", height = "700px") %>%
                                    percent_changing, "%)"),
                    popup = popupGraph(bc_results$sum_plot, type = "svg",
                                       width = 600, height = 500),
-                   popupOptions = popupOptions(maxWidth = 800, minWidth = 800, 
+                   popupOptions = popupOptions(maxWidth = 800, minWidth = 800,
                                                closeOnClick = TRUE)
                    ) %>% 
   addLegend("topright", pal = pal, values = ~percent_changing,
