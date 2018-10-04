@@ -87,11 +87,12 @@ leaflet(bc_results, width = "900px", height = "700px") %>%
                    color = ~pal(percent_changing),
                    label = ~paste0(to_titlecase(SITE_NAME), " (", 
                                    percent_changing, "%)"),
-                   popup = popupGraph(bc_results$sum_plot, width = 600,
-                                               height = 500),
-                   popupOptions = popupOptions(maxWidth = 800)
+                   popup = popupGraph(bc_results$sum_plot, type = "svg",
+                                      width = 600, height = 500),
+                   popupOptions = popupOptions(maxWidth = 800, minWidth = 800, 
+                                               closeOnClick = TRUE)
                    ) %>% 
-  addLegend("bottomright", pal = pal, values = ~percent_changing,
+  addLegend("topright", pal = pal, values = ~percent_changing,
             title = "% of Parameters<br>showing significant<br>change",
             labFormat = labelFormat(suffix = "%"),
             opacity = 1) %>% 
