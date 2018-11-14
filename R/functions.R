@@ -176,3 +176,16 @@ to_titlecase <- function(x) {
   tools::toTitleCase(tolower(x))  
 }
 
+# If there is TEMPERATURE WATER (FIELD) and TEMPERATURE WATER, take only FIELD
+filter_temp <- function(x) {
+  stopifnot(all(c("SITE_NO", "PARAM_SHORT_NAME", "Date") %in% group_vars(x)))
+  filter(x, 
+         if (all(c("TEMPERATURE WATER (FIELD)", "TEMPERATURE WATER") %in%
+          Variable)) {
+           Variable == "TEMPERATURE WATER (FIELD)"
+         } else {
+           TRUE
+         }
+  )
+  
+}
