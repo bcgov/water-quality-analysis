@@ -115,7 +115,7 @@ bc_nested <- tidyr::nest(bc_tidy, -PEARSEDA, -SITE_NO, -PARAM_SHORT_NAME,
 # TODO: trim ends of ts when very sparse data
 ```
 
-A total of `r nrow(wq_params)` parameters were selected to be tested at all sites:
+A total of `r nrow(wq_params)` parameters at `r length(unique(bc_nested$SITE_NO))` monitoring stations were selected to be tested:
 
 ```{r}
 kable(wq_params, booktabs = TRUE, longtable = TRUE, 
@@ -159,7 +159,8 @@ bc_nested <- mutate(
   sig = slope_p_val < 0.05,
   intercept = map2_dbl(full_monthly, annual_slope, 
                       ~ smk_int_from_data(.x, slope = .y)), 
-  ## Convert to average annual percent change: 100 * (Yend/Ystart - 1) / n_years.
+  ## Convert to average annual percent change: 
+  ## 100 * (Yend/Ystart - 1) / n_years.
   ann_percent_change = 100 * 
     ((((annual_slope * nyears + intercept) / 
          intercept) - 1) / 
@@ -245,7 +246,7 @@ for (s in station_results$SITE_NO) {
   p <- ggplot(d, aes(x = Date, y = month_avg)) + 
     # geom_step(aes(y = detection_limit)) + 
     geom_point(aes(alpha = censored), colour = "grey30", size = 0.4) +
-    scale_alpha_manual(values = c(0.4, 0.8)) + 
+    scale_alpha_manual(values = c("censored" = 0.4, "not censored" = 0.8)) + 
     scale_x_date(breaks = c(min(d$Date), max(d$Date)), 
                  date_minor_breaks = "2 years",
                  date_labels = "%Y") +

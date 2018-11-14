@@ -2,14 +2,14 @@ Category,Parameter,Variable_short_name,notes
 General,Dissolved oxygen,OXYGEN DISSOLVED,
 General,Water temperature,WATER TEMPERATURE,includes temperature (water) and temperature water (field)
 General,Turbidity,TURBIDITY,does not include turbidity (field)
-General,Specific conductance,SPECIFIC CONDUCTANCE,doesnot include conductance (field)
+General,Specific conductance,SPECIFIC CONDUCTANCE,does not include conductance (field)
 General,pH,PH,does not include PH (FIELD)
 General,Hardness,HARDNESS TOTAL (CALCD.) CACO3,includes hardness total and HARDNESS TOTAL (CALCD.) CACO3
 General,True colour,COLOUR TRUE,
 Nutrients,Total Nitrogen,NITROGEN TOTAL,does not include NITROGEN TOTAL (CALCD.) or kjeldahl
 Nutrients,Total phosphorus,PHOSPHORUS TOTAL,
 Organic Matter,Dissolved organic carbon,CARBON DISSOLVED ORGANIC,
-Ions,Dissolved sulphate,SULPHATE,includes sluphate and sulphate dissolved (not total)
+Ions,Dissolved sulphate,SULPHATE,includes sulphate and sulphate dissolved (not total)
 Ions,Dissolved magnesium,MAGNESIUM,"includes dissolved, extractable, extractable/unfiltered"
 Ions,Dissolved calcium,CALCIUM,"includes dissolved, extractable, extractable/unfiltered"
 Metals,Total aluminum,ALUMINUM TOTAL,
